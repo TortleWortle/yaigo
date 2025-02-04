@@ -42,6 +42,12 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		ClearHistory:   false, // seems to be hardcoded in the laravel implementation
 	}
 
+	if r.Method == http.MethodGet && r.Header.Get("X-Inertia-Version") != "" && r.Header.Get("X-Inertia-Version") != s.manifestVersion {
+		w.Header().Set("X-Inertia-Location", r.URL.String())
+		w.WriteHeader(http.StatusConflict)
+		return nil
+	}
+
 	if r.Header.Get("X-Inertia") == "true" {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Vary", "X-Inertia")
