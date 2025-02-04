@@ -57,3 +57,21 @@ func getPropBagCtx(ctx context.Context) (props.Bag, error) {
 	}
 	return req.PropBag, nil
 }
+
+type DeferredProp struct {
+	group string
+	fn    DeferredPropFn
+}
+type DeferredPropFn = func() (any, error)
+
+func Defer(fn DeferredPropFn) *DeferredProp {
+	return &DeferredProp{
+		group: "default",
+		fn:    fn,
+	}
+}
+
+func (p *DeferredProp) Group(name string) *DeferredProp {
+	p.group = name
+	return p
+}

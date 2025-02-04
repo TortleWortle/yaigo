@@ -17,7 +17,13 @@ const props = defineProps({
   deferredProp: {
     type: String,
     default: "",
-  }
+  },  deferredPropInGroup: {
+    type: String,
+    default: "",
+  },  deferredPropInGroup2: {
+    type: String,
+    default: "",
+  },
 });
 
 function reloadTime() {

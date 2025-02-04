@@ -39,8 +39,6 @@ type pageData struct {
 	DeferredProps  map[string][]string `json:"deferredProps"`
 }
 
-type DeferredProp = func() (any, error)
-
 func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
 	req, err := getRequest(r)
 	if err != nil {
@@ -92,12 +90,12 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		// evaluate deferred props and set the values
 		for k, v := range data.Props {
 			switch v.(type) {
-			case DeferredProp:
-				fn, ok := v.(DeferredProp)
+			case *DeferredProp:
+				prop, ok := v.(*DeferredProp)
 				if !ok {
 					return errors.New("could not cast prop value to DeferredProp")
 				}
-				v, err := fn()
+				v, err := prop.fn()
 				if err != nil {
 					return err
 				}
@@ -106,24 +104,22 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		}
 	}
 
-	var deferredPropNames []string
-
 	// remove any deferred props here and keep track of their names (todo: groups)
 	maps.DeleteFunc(data.Props, func(k string, v any) bool {
 		switch v.(type) {
-		case DeferredProp:
-			deferredPropNames = append(deferredPropNames, k)
+		case *DeferredProp:
+			if !isPartial {
+				prop, ok := v.(*DeferredProp)
+				if !ok {
+					return true
+				}
+				data.DeferredProps[prop.group] = append(data.DeferredProps[prop.group], k)
+			}
 			return true
 		default:
 			return false
 		}
 	})
-
-	if !isPartial {
-		for _, name := range deferredPropNames {
-			data.DeferredProps[name] = []string{name}
-		}
-	}
 
 	// render logic
 	if isInertia {

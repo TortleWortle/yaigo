@@ -63,17 +63,25 @@ func main() {
 			log.Printf("Could not render page: %v", err)
 		}
 	})
-
+	
 	mux.HandleFunc("GET /test", func(w http.ResponseWriter, r *http.Request) {
 		timeOfRender := time.Now().Format(time.TimeOnly)
 		inertia.SetProp(r, "helperProp", "32 "+timeOfRender)
 		err := inertia.Render(w, r, "TestPage", inertia.Props{
 			"inlineProp": "Geoffrey " + timeOfRender,
 			"time":       timeOfRender,
-			"deferredProp": func() (any, error) {
-				time.Sleep(time.Millisecond * 1500)
-				return "sloww prop " + time.Now().Format(time.TimeOnly), nil
-			},
+			"deferredProp": inertia.Defer(func() (any, error) {
+				time.Sleep(time.Millisecond * 500)
+				return "deferred prop", nil
+			}),
+			"deferredPropInGroup": inertia.Defer(func() (any, error) {
+				time.Sleep(time.Millisecond * 2000)
+				return "one!", nil
+			}).Group("propgroup"),
+			"deferredPropInGroup2": inertia.Defer(func() (any, error) {
+				time.Sleep(time.Millisecond * 2000)
+				return "two!", nil
+			}).Group("propgroup"),
 		})
 		if err != nil {
 			log.Printf("Could not render page: %v", err)
