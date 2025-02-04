@@ -7,7 +7,7 @@ import { Link } from "@inertiajs/vue3";
         <Link href="/news">News</Link>
         <Link href="/about">About</Link>
         <Link href="/jeff">Jeff</Link>
-        <Link href="/joff">Joff</Link>
+        <Link href="/test">Test</Link>
     </nav>
     <div>
         <slot />

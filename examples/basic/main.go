@@ -2,10 +2,12 @@ package main
 
 import (
 	_ "embed"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"go.tortle.tech/go-inertia/examples/basic/web"
 	"go.tortle.tech/go-inertia/pkg/inertia"
@@ -62,12 +64,17 @@ func main() {
 		}
 	})
 
-	mux.HandleFunc("GET /joff", func(w http.ResponseWriter, r *http.Request) {
-		inertia.SetProp(r, "age", 32)
-		err := inertia.Render(w, r, "User", inertia.Props{
-			"user": "Geoffrey 2",
+	mux.HandleFunc("GET /test", func(w http.ResponseWriter, r *http.Request) {
+		timeOfRender := time.Now().Format(time.TimeOnly)
+		inertia.SetProp(r, "helperProp", "32 "+timeOfRender)
+		err := inertia.Render(w, r, "TestPage", inertia.Props{
+			"inlineProp": "Geoffrey " + timeOfRender,
+			"time":       timeOfRender,
+			"deferredProp": func() (any, error) {
+				time.Sleep(time.Millisecond * 1500)
+				return "sloww prop " + time.Now().Format(time.TimeOnly), nil
+			},
 		})
-
 		if err != nil {
 			log.Printf("Could not render page: %v", err)
 		}
@@ -95,5 +102,12 @@ func main() {
 	})
 
 	log.Println("starting listener")
-	http.ListenAndServe(":3000", inertiaServer.Middleware(mux))
+	http.ListenAndServe(":3000", logRequests(inertiaServer.Middleware(mux)))
+}
+
+func logRequests(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("%s - %s\n", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
 }

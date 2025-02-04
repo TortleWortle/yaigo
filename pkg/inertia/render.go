@@ -2,9 +2,23 @@ package inertia
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
+	"maps"
 	"net/http"
+	"slices"
+	"strings"
+)
+
+const (
+	HeaderInertia          = "X-Inertia"
+	HeaderErrorBag         = "X-Inertia-Error-Bag"
+	HeaderLocation         = "X-Inertia-Location"
+	HeaderVersion          = "X-Inertia-Version"
+	HeaderPartialComponent = "X-Inertia-Partial-Component"
+	HeaderPartialOnly      = "X-Inertia-Partial-Data"
+	HeaderPartialExcept    = "X-Inertia-Partial-Except"
 )
 
 func Render(w http.ResponseWriter, r *http.Request, page string, pageProps map[string]any) error {
@@ -16,13 +30,16 @@ func Render(w http.ResponseWriter, r *http.Request, page string, pageProps map[s
 }
 
 type pageData struct {
-	Component      string `json:"component"`
-	Url            string `json:"url"`
-	Props          Props  `json:"props"`
-	Version        string `json:"version"`
-	EncryptHistory bool   `json:"encryptHistory"`
-	ClearHistory   bool   `json:"clearHistory"`
+	Component      string              `json:"component"`
+	Url            string              `json:"url"`
+	Props          Props               `json:"props"`
+	Version        string              `json:"version"`
+	EncryptHistory bool                `json:"encryptHistory"`
+	ClearHistory   bool                `json:"clearHistory"`
+	DeferredProps  map[string][]string `json:"deferredProps"`
 }
+
+type DeferredProp = func() (any, error)
 
 func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
 	req, err := getRequest(r)
@@ -40,18 +57,79 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		Version:        s.manifestVersion,
 		EncryptHistory: false, // seems to be hardcoded in the laravel implementation
 		ClearHistory:   false, // seems to be hardcoded in the laravel implementation
+		DeferredProps:  make(map[string][]string),
 	}
 
-	if r.Method == http.MethodGet && r.Header.Get("X-Inertia-Version") != "" && r.Header.Get("X-Inertia-Version") != s.manifestVersion {
-		w.Header().Set("X-Inertia-Location", r.URL.String())
+	isInertia := r.Header.Get(HeaderInertia) == "true"
+	partialComponent := r.Header.Get(HeaderPartialComponent)
+	isPartial := partialComponent == data.Component
+
+	// detect frontend changes
+	if isInertia && r.Method == http.MethodGet && r.Header.Get(HeaderVersion) != s.manifestVersion {
+		w.Header().Set(HeaderLocation, r.URL.String())
 		w.WriteHeader(http.StatusConflict)
 		return nil
 	}
 
-	if r.Header.Get("X-Inertia") == "true" {
+	// resolve deferred props
+	if isInertia && isPartial {
+		onlyPropsStr := r.Header.Get(HeaderPartialOnly)
+		if onlyPropsStr != "" {
+			onlyProps := strings.Split(onlyPropsStr, ",")
+			maps.DeleteFunc(data.Props, func(k string, v any) bool {
+				return !slices.Contains(onlyProps, k)
+			})
+		}
+
+		exceptPropsStr := r.Header.Get(HeaderPartialExcept)
+		if exceptPropsStr != "" {
+			exceptProps := strings.Split(exceptPropsStr, ",")
+			maps.DeleteFunc(data.Props, func(k string, v any) bool {
+				return slices.Contains(exceptProps, k)
+			})
+		}
+
+		// evaluate deferred props and set the values
+		for k, v := range data.Props {
+			switch v.(type) {
+			case DeferredProp:
+				fn, ok := v.(DeferredProp)
+				if !ok {
+					return errors.New("could not cast prop value to DeferredProp")
+				}
+				v, err := fn()
+				if err != nil {
+					return err
+				}
+				data.Props[k] = v
+			}
+		}
+	}
+
+	var deferredPropNames []string
+
+	// remove any deferred props here and keep track of their names (todo: groups)
+	maps.DeleteFunc(data.Props, func(k string, v any) bool {
+		switch v.(type) {
+		case DeferredProp:
+			deferredPropNames = append(deferredPropNames, k)
+			return true
+		default:
+			return false
+		}
+	})
+
+	if !isPartial {
+		for _, name := range deferredPropNames {
+			data.DeferredProps[name] = []string{name}
+		}
+	}
+
+	// render logic
+	if isInertia {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Vary", "X-Inertia")
-		w.Header().Set("X-Inertia", "true")
+		w.Header().Set("Vary", HeaderInertia)
+		w.Header().Set(HeaderInertia, "true")
 		err := json.NewEncoder(w).Encode(data)
 		if err != nil {
 			return err

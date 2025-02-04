@@ -1,5 +1,5 @@
 <script setup>
-defineProps({
+const props = defineProps({
     user: {
         type: String,
         default: "",
@@ -8,10 +8,16 @@ defineProps({
         type: Number,
         default: 0,
     },
+    slow: {
+      type: String,
+      default: "",
+    },
 });
 </script>
 
 <template>
     <h1>Welcome {{ user }}</h1>
-    <pre>Age: {{ age }}</pre>
+    <pre>
+      {{ JSON.stringify(props, null, 2) }}
+    </pre>
 </template>
