@@ -60,5 +60,6 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	inertiaRoot := template.HTML(fmt.Sprintf("<div id=\"app\" data-page='%s'></div>", propStr))
 	return s.rootTemplate.Execute(w, rootTmplData{
 		InertiaRoot: inertiaRoot,
+		InertiaHead: template.HTML(""),
 	})
 }

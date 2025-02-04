@@ -21,4 +21,5 @@ func (req *request) Reset() {
 
 type rootTmplData struct {
 	InertiaRoot template.HTML
+	InertiaHead template.HTML
 }
