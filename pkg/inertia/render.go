@@ -2,7 +2,6 @@ package inertia
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html/template"
 	"maps"
@@ -29,16 +28,6 @@ func Render(w http.ResponseWriter, r *http.Request, page string, pageProps map[s
 	return server.Render(w, r, page, pageProps)
 }
 
-type pageData struct {
-	Component      string              `json:"component"`
-	Url            string              `json:"url"`
-	Props          Props               `json:"props"`
-	Version        string              `json:"version"`
-	EncryptHistory bool                `json:"encryptHistory"`
-	ClearHistory   bool                `json:"clearHistory"`
-	DeferredProps  map[string][]string `json:"deferredProps"`
-}
-
 func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
 	req, err := getRequest(r)
 	if err != nil {
@@ -46,11 +35,14 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	}
 
 	bag := req.PropBag
-	bag.Merge(pageProps)
+	props := maps.Clone(bag.Items())
+	for k, v := range pageProps {
+		props[k] = v
+	}
 
-	data := pageData{
+	data := &pageData{
 		Component:      page,
-		Props:          bag.Items(),
+		Props:          props,
 		Url:            r.URL.Path, // todo: does this need query params?,
 		Version:        s.manifestVersion,
 		EncryptHistory: false, // seems to be hardcoded in the laravel implementation
@@ -62,7 +54,7 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	partialComponent := r.Header.Get(HeaderPartialComponent)
 	isPartial := partialComponent == data.Component
 
-	// detect frontend changes
+	// detect frontend version changes
 	if isInertia && r.Method == http.MethodGet && r.Header.Get(HeaderVersion) != s.manifestVersion {
 		w.Header().Set(HeaderLocation, r.URL.String())
 		w.WriteHeader(http.StatusConflict)
@@ -70,69 +62,49 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	}
 
 	// resolve deferred props
-	if isInertia && isPartial {
-		onlyPropsStr := r.Header.Get(HeaderPartialOnly)
-		if onlyPropsStr != "" {
-			onlyProps := strings.Split(onlyPropsStr, ",")
-			maps.DeleteFunc(data.Props, func(k string, v any) bool {
-				return !slices.Contains(onlyProps, k)
-			})
-		}
-
-		exceptPropsStr := r.Header.Get(HeaderPartialExcept)
-		if exceptPropsStr != "" {
-			exceptProps := strings.Split(exceptPropsStr, ",")
-			maps.DeleteFunc(data.Props, func(k string, v any) bool {
-				return slices.Contains(exceptProps, k)
-			})
-		}
-
-		// evaluate deferred props and set the values
-		for k, v := range data.Props {
-			switch v.(type) {
-			case *DeferredProp:
-				prop, ok := v.(*DeferredProp)
-				if !ok {
-					return errors.New("could not cast prop value to DeferredProp")
-				}
-				v, err := prop.fn()
-				if err != nil {
-					return err
-				}
-				data.Props[k] = v
-			}
-		}
+	if isPartial {
+		return s.handlePartial(w, r, data)
 	}
 
-	// remove any deferred props here and keep track of their names (todo: groups)
-	maps.DeleteFunc(data.Props, func(k string, v any) bool {
-		switch v.(type) {
-		case *DeferredProp:
-			if !isPartial {
-				prop, ok := v.(*DeferredProp)
-				if !ok {
-					return true
-				}
-				data.DeferredProps[prop.group] = append(data.DeferredProps[prop.group], k)
-			}
-			return true
-		default:
-			return false
-		}
-	})
+	// filter out deferred props and add them to the deferred props object
+	err = data.moveDeferredProps()
+	if err != nil {
+		return fmt.Errorf("moving deferred props: %w", err)
+	}
 
-	// render logic
 	if isInertia {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Vary", HeaderInertia)
-		w.Header().Set(HeaderInertia, "true")
-		err := json.NewEncoder(w).Encode(data)
-		if err != nil {
-			return err
-		}
-		return nil
+		return s.renderJson(w, data)
 	}
 
+	return s.renderHtml(w, data)
+}
+
+func (s *Server) handlePartial(w http.ResponseWriter, r *http.Request, data *pageData) error {
+	onlyPropsStr := r.Header.Get(HeaderPartialOnly)
+	if onlyPropsStr != "" {
+		onlyProps := strings.Split(onlyPropsStr, ",")
+		maps.DeleteFunc(data.Props, func(k string, v any) bool {
+			return !slices.Contains(onlyProps, k)
+		})
+	}
+
+	exceptPropsStr := r.Header.Get(HeaderPartialExcept)
+	if exceptPropsStr != "" {
+		exceptProps := strings.Split(exceptPropsStr, ",")
+		maps.DeleteFunc(data.Props, func(k string, v any) bool {
+			return slices.Contains(exceptProps, k)
+		})
+	}
+
+	err := data.evalProps()
+	if err != nil {
+		return fmt.Errorf("evaluating props: %w", err)
+	}
+
+	return s.renderJson(w, data)
+}
+
+func (s *Server) renderHtml(w http.ResponseWriter, data *pageData) error {
 	propStr, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -142,4 +114,15 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		InertiaRoot: inertiaRoot,
 		InertiaHead: template.HTML(""),
 	})
+}
+
+func (s *Server) renderJson(w http.ResponseWriter, data *pageData) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Vary", HeaderInertia)
+	w.Header().Set(HeaderInertia, "true")
+	err := json.NewEncoder(w).Encode(data)
+	if err != nil {
+		return err
+	}
+	return nil
 }

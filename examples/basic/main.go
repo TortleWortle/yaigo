@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -63,28 +64,39 @@ func main() {
 			log.Printf("Could not render page: %v", err)
 		}
 	})
-	
+
 	mux.HandleFunc("GET /test", func(w http.ResponseWriter, r *http.Request) {
 		timeOfRender := time.Now().Format(time.TimeOnly)
 		inertia.SetProp(r, "helperProp", "32 "+timeOfRender)
+		inertia.SetProp(r, "deferredFromHelper", inertia.DeferSync(func() (any, error) {
+			time.Sleep(time.Millisecond * 500)
+			return "deferred prop from helper", nil
+		}))
 		err := inertia.Render(w, r, "TestPage", inertia.Props{
 			"inlineProp": "Geoffrey " + timeOfRender,
 			"time":       timeOfRender,
-			"deferredProp": inertia.Defer(func() (any, error) {
+			"deferredProp": inertia.DeferSync(func() (any, error) {
 				time.Sleep(time.Millisecond * 500)
 				return "deferred prop", nil
 			}),
 			"deferredPropInGroup": inertia.Defer(func() (any, error) {
-				time.Sleep(time.Millisecond * 2000)
+				return nil, errors.New("uh oh!")
+				time.Sleep(time.Millisecond * 750)
 				return "one!", nil
 			}).Group("propgroup"),
 			"deferredPropInGroup2": inertia.Defer(func() (any, error) {
-				time.Sleep(time.Millisecond * 2000)
+				time.Sleep(time.Millisecond * 750)
 				return "two!", nil
+			}).Group("propgroup"),
+			// sync prop in same group as unsynced for extra dramatic effect
+			"deferredPropInGroup3": inertia.DeferSync(func() (any, error) {
+				time.Sleep(time.Millisecond * 500)
+				return "three!", nil
 			}).Group("propgroup"),
 		})
 		if err != nil {
 			log.Printf("Could not render page: %v", err)
+			inertia.Render(w, r, "About", nil)
 		}
 	})
 
@@ -94,6 +106,15 @@ func main() {
 		if err != nil {
 			log.Printf("Could not render page: %v", err)
 		}
+	})
+
+	mux.HandleFunc("GET /404", func(w http.ResponseWriter, r *http.Request) {
+		err := inertia.Render(w, r, "About", nil)
+
+		if err != nil {
+			log.Printf("Could not render page: %v", err)
+		}
+		w.WriteHeader(404)
 	})
 
 	fileServer := http.FileServer(http.FS(frontend))

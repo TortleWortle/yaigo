@@ -17,10 +17,20 @@ const props = defineProps({
   deferredProp: {
     type: String,
     default: "",
-  },  deferredPropInGroup: {
+  },
+  deferredFromHelper: {
     type: String,
     default: "",
-  },  deferredPropInGroup2: {
+  },
+  deferredPropInGroup: {
+    type: String,
+    default: "",
+  },
+  deferredPropInGroup2: {
+    type: String,
+    default: "",
+  },
+  deferredPropInGroup3: {
     type: String,
     default: "",
   },

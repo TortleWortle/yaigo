@@ -53,6 +53,7 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 	server := &Server{
 		manifestVersion: version,
 		rootTemplate:    rootTmpl,
+		// does a request pool really make sense when we allocate so often in the rendering function?
 		requestPool: &sync.Pool{
 			New: func() any {
 				return newRequest()

@@ -61,13 +61,23 @@ func getPropBagCtx(ctx context.Context) (props.Bag, error) {
 type DeferredProp struct {
 	group string
 	fn    DeferredPropFn
+	sync  bool
 }
 type DeferredPropFn = func() (any, error)
+
+func DeferSync(fn DeferredPropFn) *DeferredProp {
+	return &DeferredProp{
+		group: "default",
+		fn:    fn,
+		sync:  true,
+	}
+}
 
 func Defer(fn DeferredPropFn) *DeferredProp {
 	return &DeferredProp{
 		group: "default",
 		fn:    fn,
+		sync:  false,
 	}
 }
 
