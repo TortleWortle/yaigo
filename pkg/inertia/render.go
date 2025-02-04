@@ -34,7 +34,7 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		return err
 	}
 
-	bag := req.PropBag
+	bag := req.propBag
 	props := maps.Clone(bag.Items())
 	for k, v := range pageProps {
 		props[k] = v
@@ -63,7 +63,7 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 
 	// resolve deferred props
 	if isPartial {
-		return s.handlePartial(w, r, data)
+		return handlePartial(w, r, req.status, data)
 	}
 
 	// filter out deferred props and add them to the deferred props object
@@ -73,13 +73,13 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	}
 
 	if isInertia {
-		return s.renderJson(w, data)
+		return renderJson(w, req.status, data)
 	}
 
-	return s.renderHtml(w, data)
+	return renderHtml(s.rootTemplate, w, req.status, data)
 }
 
-func (s *Server) handlePartial(w http.ResponseWriter, r *http.Request, data *pageData) error {
+func handlePartial(w http.ResponseWriter, r *http.Request, status int, data *pageData) error {
 	onlyPropsStr := r.Header.Get(HeaderPartialOnly)
 	if onlyPropsStr != "" {
 		onlyProps := strings.Split(onlyPropsStr, ",")
@@ -101,25 +101,28 @@ func (s *Server) handlePartial(w http.ResponseWriter, r *http.Request, data *pag
 		return fmt.Errorf("evaluating props: %w", err)
 	}
 
-	return s.renderJson(w, data)
+	return renderJson(w, status, data)
 }
 
-func (s *Server) renderHtml(w http.ResponseWriter, data *pageData) error {
+func renderHtml(rootTemplate *template.Template, w http.ResponseWriter, status int, data *pageData) error {
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(status)
 	propStr, err := json.Marshal(data)
 	if err != nil {
 		return err
 	}
 	inertiaRoot := template.HTML(fmt.Sprintf("<div id=\"app\" data-page='%s'></div>", propStr))
-	return s.rootTemplate.Execute(w, rootTmplData{
+	return rootTemplate.Execute(w, rootTmplData{
 		InertiaRoot: inertiaRoot,
 		InertiaHead: template.HTML(""),
 	})
 }
 
-func (s *Server) renderJson(w http.ResponseWriter, data *pageData) error {
+func renderJson(w http.ResponseWriter, status int, data *pageData) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Vary", HeaderInertia)
 	w.Header().Set(HeaderInertia, "true")
+	w.WriteHeader(status)
 	err := json.NewEncoder(w).Encode(data)
 	if err != nil {
 		return err

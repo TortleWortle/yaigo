@@ -10,7 +10,11 @@ import (
 
 type Props map[string]any
 
-func SetProp[T any](r *http.Request, key string, value T) error {
+func SetProp(r *http.Request, key string, value any) error {
+	switch value.(type) {
+	case *DeferredProp:
+		return errors.New("deferred props can only be used on the page render func")
+	}
 	return setPropCtx(r.Context(), key, value)
 }
 
@@ -55,7 +59,7 @@ func getPropBagCtx(ctx context.Context) (props.Bag, error) {
 	if err != nil {
 		return nil, err
 	}
-	return req.PropBag, nil
+	return req.propBag, nil
 }
 
 type DeferredProp struct {

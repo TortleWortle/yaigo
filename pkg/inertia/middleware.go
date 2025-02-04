@@ -11,6 +11,7 @@ type contextKey int
 const (
 	serverKey contextKey = iota
 	requestKey
+	statusKey
 )
 
 func (s *Server) Middleware(next http.Handler) http.Handler {
@@ -27,6 +28,19 @@ func (s *Server) Middleware(next http.Handler) http.Handler {
 		inertiaReq.Reset()
 		s.requestPool.Put(inertiaReq)
 	})
+}
+
+func SetStatus(r *http.Request, status int) error {
+	return setStatusCtx(r.Context(), status)
+}
+
+func setStatusCtx(ctx context.Context, status int) error {
+	req, err := getRequestCtx(ctx)
+	if err != nil {
+		return err
+	}
+	req.status = status
+	return nil
 }
 
 func getServer(r *http.Request) (*Server, error) {
