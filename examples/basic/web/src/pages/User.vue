@@ -13,5 +13,5 @@ defineProps({
 
 <template>
     <h1>Welcome {{ user }}</h1>
-    <p>{{ age }}</p>
+    <pre>Age: {{ age }}</pre>
 </template>

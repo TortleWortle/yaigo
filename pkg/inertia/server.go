@@ -2,10 +2,12 @@ package inertia
 
 import (
 	"errors"
+	"fmt"
 	"go.tortle.tech/go-inertia/pkg/vite"
 	"html/template"
 	"io/fs"
 	"net/url"
+	"strings"
 	"sync"
 )
 
@@ -95,6 +97,21 @@ func generateRootTemplate(frontend fs.FS, manifest *vite.Manifest, opts *ServerO
 			}
 
 			return item.File, nil
+		},
+		"viteCSS": func(scriptUrl string) (template.HTML, error) {
+			// dev server provides the css by itself
+			if opts.viteUrl != "" {
+				return "", nil
+			}
+			var tb strings.Builder
+			item, err := manifest.GetItem(scriptUrl)
+			if err != nil {
+				return "", err
+			}
+			for _, url := range item.Css {
+				tb.WriteString(fmt.Sprintf("<link rel=\"stylesheet\" href=\"%s\">\n", url))
+			}
+			return template.HTML(tb.String()), nil
 		},
 	})
 

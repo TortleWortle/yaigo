@@ -15,10 +15,11 @@ type Manifest struct {
 }
 
 type ManifestItem struct {
-	File    string `json:"file"`
-	Name    string `json:"name"`
-	Src     string `json:"src"`
-	IsEntry bool   `json:"isEntry"`
+	File    string   `json:"file"`
+	Name    string   `json:"name"`
+	Src     string   `json:"src"`
+	IsEntry bool     `json:"isEntry"`
+	Css     []string `json:"css"`
 }
 
 func FromJSON(r io.Reader) (*Manifest, error) {
