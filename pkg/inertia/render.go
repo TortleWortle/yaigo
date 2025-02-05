@@ -34,11 +34,14 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		return err
 	}
 
+	// copy items from prop bag into pageData
+	// copy pageProps into pageData
 	props := maps.Clone(req.propBag.Items())
 	for k, v := range pageProps {
 		props[k] = v
 	}
 
+	// set value from req pagedata
 	data := &pageData{
 		Component:      page,
 		Props:          props,
@@ -75,10 +78,10 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		return renderJson(w, req.status, data)
 	}
 
-	return renderHtml(s.rootTemplate, w, req.status, data)
+	return renderHtml(req.tmpl, w, req.status, data)
 }
-
 func handlePartial(w http.ResponseWriter, r *http.Request, status int, data *pageData) error {
+	// can't be avoided ig
 	onlyPropsStr := r.Header.Get(HeaderPartialOnly)
 	if onlyPropsStr != "" {
 		onlyProps := strings.Split(onlyPropsStr, ",")
@@ -87,6 +90,7 @@ func handlePartial(w http.ResponseWriter, r *http.Request, status int, data *pag
 		})
 	}
 
+	// can't realistically be avoided
 	exceptPropsStr := r.Header.Get(HeaderPartialExcept)
 	if exceptPropsStr != "" {
 		exceptProps := strings.Split(exceptPropsStr, ",")

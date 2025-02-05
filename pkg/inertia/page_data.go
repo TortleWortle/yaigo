@@ -90,7 +90,24 @@ func (data *pageData) evalProps() error {
 			return res.err
 		}
 		data.Props[name] = res.value
+		close(result)
 	}
 
 	return nil
+}
+
+func (data *pageData) Reset() {
+	for k := range data.Props {
+		delete(data.Props, k)
+	}
+
+	for k := range data.DeferredProps {
+		delete(data.DeferredProps, k)
+	}
+
+	data.Url = ""
+	data.Component = ""
+	data.Version = ""
+	data.ClearHistory = false
+	data.EncryptHistory = false
 }

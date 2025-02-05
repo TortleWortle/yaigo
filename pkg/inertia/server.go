@@ -15,7 +15,6 @@ type OptFunc = func(o *ServerOpts)
 
 type Server struct {
 	requestPool     *sync.Pool
-	rootTemplate    *template.Template
 	manifestVersion string
 }
 
@@ -52,11 +51,9 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 
 	server := &Server{
 		manifestVersion: version,
-		rootTemplate:    rootTmpl,
-		// does a request pool really make sense when we allocate so often in the rendering function?
 		requestPool: &sync.Pool{
 			New: func() any {
-				return newRequest()
+				return newRequest(rootTmpl)
 			},
 		},
 	}
