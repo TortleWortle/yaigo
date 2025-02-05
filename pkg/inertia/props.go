@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"go.tortle.tech/go-inertia/pkg/props"
+	"github.com/tortlewortle/go-inertia/pkg/props"
 )
 
 type Props map[string]any

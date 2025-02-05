@@ -3,7 +3,7 @@ package inertia
 import (
 	"errors"
 	"fmt"
-	"go.tortle.tech/go-inertia/pkg/vite"
+	"github.com/tortlewortle/go-inertia/pkg/vite"
 	"html/template"
 	"io/fs"
 	"net/url"

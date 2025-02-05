@@ -11,8 +11,8 @@ import (
 	"path"
 	"time"
 
-	"go.tortle.tech/go-inertia/examples/basic/web"
-	"go.tortle.tech/go-inertia/pkg/inertia"
+	"github.com/tortlewortle/go-inertia/examples/basic/web"
+	"github.com/tortlewortle/go-inertia/pkg/inertia"
 )
 
 func main() {
