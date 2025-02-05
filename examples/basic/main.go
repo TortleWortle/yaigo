@@ -140,6 +140,14 @@ func main() {
 		}
 	})
 
+	mux.HandleFunc("GET /clear_history", func(w http.ResponseWriter, r *http.Request) {
+		inertia.ClearHistory(r)
+		err := inertia.Render(w, r, "About", nil)
+		if err != nil {
+			log.Printf("Could not render page: %v", err)
+		}
+	})
+
 	mux.HandleFunc("GET /brokenprop", func(w http.ResponseWriter, r *http.Request) {
 		timeOfRender := time.Now().Format(time.TimeOnly)
 		inertia.SetProp(r, "helperProp", "32 "+timeOfRender)
@@ -193,7 +201,14 @@ func main() {
 	})
 
 	log.Println("starting listener")
-	http.ListenAndServe(":3000", logRequests(inertiaServer.Middleware(mux)))
+	http.ListenAndServe(":3000", logRequests(inertiaServer.Middleware(encryptsHistory(mux))))
+}
+
+func encryptsHistory(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		inertia.EncryptHistory(r, true)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func logRequests(next http.Handler) http.Handler {
