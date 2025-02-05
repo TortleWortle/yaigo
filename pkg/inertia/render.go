@@ -42,7 +42,7 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 
 	req, err := getRequest(r)
 	if err != nil {
-		return err
+		req = s.requestPool.Get().(*request)
 	}
 
 	data := req.pageData
