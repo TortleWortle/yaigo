@@ -94,7 +94,7 @@ func generateRootTemplate(frontend fs.FS, manifest *vite.Manifest, opts *ServerO
 				return viteUrl.JoinPath(assetUrl).String(), nil
 			}
 
-			return item.File, nil
+			return "/" + item.File, nil
 		},
 		"viteCSS": func(scriptUrl string) (template.HTML, error) {
 			// dev server provides the css by itself
@@ -107,7 +107,7 @@ func generateRootTemplate(frontend fs.FS, manifest *vite.Manifest, opts *ServerO
 				return "", err
 			}
 			for _, url := range item.Css {
-				tb.WriteString(fmt.Sprintf("<link rel=\"stylesheet\" href=\"%s\">\n", url))
+				tb.WriteString(fmt.Sprintf("<link rel=\"stylesheet\" href=\"/%s\">\n", url))
 			}
 			return template.HTML(tb.String()), nil
 		},
