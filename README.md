@@ -165,6 +165,7 @@ func(w http.ResponseWriter, r *http.Request) {
 - [ ] frontend starter kits for vue, react and svelte
 ### Maybe
 - [ ] more complete starter kits (with ssr).
+- [ ] better way of detecting local dev mode for vite dev server configuration
 
 ## Why
 I liked using InertiaJS and I want to use it with Go.
