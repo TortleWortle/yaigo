@@ -17,6 +17,7 @@ type pageData struct {
 	syncProps    map[string]*LazyProp
 	asyncProps   map[string]*LazyProp
 	asyncResults map[string]chan asyncPropResult // replace with syncmap?
+	dirty        bool
 }
 
 func newPageData() *pageData {
@@ -31,6 +32,7 @@ func newPageData() *pageData {
 		syncProps:      make(map[string]*LazyProp),
 		asyncProps:     make(map[string]*LazyProp),
 		asyncResults:   make(map[string]chan asyncPropResult),
+		dirty:          false,
 	}
 }
 
@@ -115,7 +117,27 @@ func (data *pageData) evalLazyProps() error {
 	return nil
 }
 
+// resetIfDirty is called on render,
+// this should only ever be called when you try to render a page as a result of a failed previous render.
+// for example, if a prop fails to load
+func (data *pageData) resetIfDirty() {
+	if data.dirty {
+		data.Reset()
+	}
+	data.dirty = true
+}
+
 func (data *pageData) Reset() {
+	data.Component = ""
+	data.Url = ""
+	data.Version = ""
+	data.EncryptHistory = false
+	data.ClearHistory = false
+	data.dirty = false
+	data.resetProps()
+}
+
+func (data *pageData) resetProps() {
 	for k := range data.Props {
 		delete(data.Props, k)
 	}
@@ -135,10 +157,4 @@ func (data *pageData) Reset() {
 	for k := range data.asyncResults {
 		delete(data.asyncResults, k)
 	}
-
-	data.Url = ""
-	data.Component = ""
-	data.Version = ""
-	data.ClearHistory = false
-	data.EncryptHistory = false
 }

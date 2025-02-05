@@ -20,7 +20,7 @@ const (
 	HeaderPartialExcept    = "X-Inertia-Partial-Except"
 )
 
-func Render(w http.ResponseWriter, r *http.Request, page string, pageProps map[string]any) error {
+func Render(w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
 	server, err := getServer(r)
 	if err != nil {
 		return err
@@ -34,17 +34,19 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		return err
 	}
 
-	// copy items from the prop bag into pageData
-	// copy pageProps into pageData
-	props := maps.Clone(req.propBag.Items())
-	for k, v := range pageProps {
-		props[k] = v
+	data := req.pageData
+	// a little yank, but if we ever fail to render a page and wish to render an error-page, we need to clear the props of the request.
+	data.resetIfDirty()
+
+	for k, v := range req.propBag.Items() {
+		data.Props[k] = v
 	}
 
-	data := req.pageData
+	for k, v := range pageProps {
+		data.Props[k] = v
+	}
 
 	data.Component = page
-	data.Props = props
 	data.Url = r.URL.Path
 	data.Version = s.manifestVersion
 

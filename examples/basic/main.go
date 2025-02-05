@@ -142,11 +142,14 @@ func main() {
 		})
 		if err != nil {
 			log.Printf("Could not render page: %v", err)
-
+			log.Println("rendering Error page")
 			inertia.SetStatus(r, http.StatusInternalServerError)
-			inertia.Render(w, r, "Error", inertia.Props{
+			err = inertia.Render(w, r, "Error", inertia.Props{
 				"status": http.StatusInternalServerError,
 			})
+			if err != nil {
+				log.Printf("Could not render error page: %v", err)
+			}
 		}
 	})
 
