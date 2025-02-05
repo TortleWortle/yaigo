@@ -12,6 +12,8 @@ import { Link } from "@inertiajs/vue3";
         <Link href="/clear_history">Clear history</Link>
         <Link href="/brokenprop">Broken prop</Link>
         <Link href="/benchme">Bench me</Link>
+        <Link href="/redirect">Redirect</Link>
+        <Link href="/location">External link</Link>
     </nav>
     <div>
         <slot />

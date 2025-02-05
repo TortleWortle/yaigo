@@ -65,6 +65,14 @@ func main() {
 		}
 	})
 
+	mux.HandleFunc("GET /redirect", func(w http.ResponseWriter, r *http.Request) {
+		inertia.Redirect(w, r, "/test")
+	})
+
+	mux.HandleFunc("GET /location", func(w http.ResponseWriter, r *http.Request) {
+		inertia.Location(w, "https://google.com")
+	})
+
 	mux.HandleFunc("GET /404", func(w http.ResponseWriter, r *http.Request) {
 		inertia.SetStatus(r, http.StatusNotFound)
 		err := inertia.Render(w, r, "Error", inertia.Props{

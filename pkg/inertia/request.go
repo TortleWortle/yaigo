@@ -13,6 +13,15 @@ type request struct {
 	pageData *pageData
 }
 
+func Redirect(w http.ResponseWriter, r *http.Request, url string) {
+	http.Redirect(w, r, url, http.StatusSeeOther)
+}
+
+func Location(w http.ResponseWriter, url string) {
+	w.Header().Set(HeaderLocation, url)
+	w.WriteHeader(http.StatusConflict)
+}
+
 func EncryptHistory(r *http.Request, encrypt bool) error {
 	req, err := getRequest(r)
 	if err != nil {
