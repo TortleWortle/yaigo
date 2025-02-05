@@ -13,6 +13,24 @@ type request struct {
 	pageData *pageData
 }
 
+func EncryptHistory(r *http.Request, encrypt bool) error {
+	req, err := getRequest(r)
+	if err != nil {
+		return err
+	}
+	req.pageData.EncryptHistory = encrypt
+	return nil
+}
+
+func ClearHistory(r *http.Request) error {
+	req, err := getRequest(r)
+	if err != nil {
+		return err
+	}
+	req.pageData.ClearHistory = true
+	return nil
+}
+
 func newRequest(tmpl *template.Template) *request {
 	return &request{
 		propBag:  props.NewBag(),
