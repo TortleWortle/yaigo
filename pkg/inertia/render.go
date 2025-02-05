@@ -34,23 +34,19 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		return err
 	}
 
-	// copy items from prop bag into pageData
+	// copy items from the prop bag into pageData
 	// copy pageProps into pageData
 	props := maps.Clone(req.propBag.Items())
 	for k, v := range pageProps {
 		props[k] = v
 	}
 
-	// set value from req pagedata
-	data := &pageData{
-		Component:      page,
-		Props:          props,
-		Url:            r.URL.Path, // todo: does this need query params?,
-		Version:        s.manifestVersion,
-		EncryptHistory: false, // seems to be hardcoded in the laravel implementation
-		ClearHistory:   false, // seems to be hardcoded in the laravel implementation
-		DeferredProps:  make(map[string][]string),
-	}
+	data := req.pageData
+
+	data.Component = page
+	data.Props = props
+	data.Url = r.URL.Path
+	data.Version = s.manifestVersion
 
 	isInertia := r.Header.Get(HeaderInertia) == "true"
 	partialComponent := r.Header.Get(HeaderPartialComponent)
@@ -69,13 +65,13 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	}
 
 	// filter out deferred props and add them to the deferred props object
-	// todo: instead of filtering, evaluate immediate props
 	err = data.moveDeferredProps()
 	if err != nil {
 		return fmt.Errorf("moving deferred props: %w", err)
 	}
 
-	err = data.evalProps()
+	// evaluate any remaining LazyProps
+	err = data.evalLazyProps()
 	if err != nil {
 		return fmt.Errorf("evaluating deferred props: %w", err)
 	}
@@ -105,7 +101,7 @@ func handlePartial(w http.ResponseWriter, r *http.Request, status int, data *pag
 		})
 	}
 
-	err := data.evalProps()
+	err := data.evalLazyProps()
 	if err != nil {
 		return fmt.Errorf("evaluating props: %w", err)
 	}
@@ -123,7 +119,7 @@ func renderHtml(rootTemplate *template.Template, w http.ResponseWriter, status i
 	inertiaRoot := template.HTML(fmt.Sprintf("<div id=\"app\" data-page='%s'></div>", propStr))
 	return rootTemplate.Execute(w, rootTmplData{
 		InertiaRoot: inertiaRoot,
-		InertiaHead: template.HTML(""),
+		InertiaHead: template.HTML(""), // this is for SSR later
 	})
 }
 

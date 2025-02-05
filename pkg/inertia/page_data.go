@@ -13,6 +13,10 @@ type pageData struct {
 	EncryptHistory bool                `json:"encryptHistory"`
 	ClearHistory   bool                `json:"clearHistory"`
 	DeferredProps  map[string][]string `json:"deferredProps"`
+
+	syncProps    map[string]*LazyProp
+	asyncProps   map[string]*LazyProp
+	asyncResults map[string]chan asyncPropResult // replace with syncmap?
 }
 
 func newPageData() *pageData {
@@ -24,6 +28,9 @@ func newPageData() *pageData {
 		EncryptHistory: false,
 		ClearHistory:   false,
 		DeferredProps:  make(map[string][]string),
+		syncProps:      make(map[string]*LazyProp),
+		asyncProps:     make(map[string]*LazyProp),
+		asyncResults:   make(map[string]chan asyncPropResult),
 	}
 }
 
@@ -50,10 +57,7 @@ type asyncPropResult struct {
 }
 
 // todo: store these in pageData so it gets reset and pooled
-func (data *pageData) evalProps() error {
-	syncProps := make(map[string]*LazyProp)
-	asyncProps := make(map[string]*LazyProp)
-	asyncResults := make(map[string]chan asyncPropResult)
+func (data *pageData) evalLazyProps() error {
 
 	var wg sync.WaitGroup
 
@@ -66,18 +70,18 @@ func (data *pageData) evalProps() error {
 				return errors.New("could not cast prop value to LazyProp")
 			}
 			if prop.sync {
-				syncProps[k] = prop
+				data.syncProps[k] = prop
 			} else {
-				asyncProps[k] = prop
+				data.asyncProps[k] = prop
 			}
 		}
 	}
 
-	wg.Add(len(asyncProps))
+	wg.Add(len(data.asyncProps))
 	// start evaluating async props first
-	for name, prop := range asyncProps {
+	for name, prop := range data.asyncProps {
 		ch := make(chan asyncPropResult, 1)
-		asyncResults[name] = ch
+		data.asyncResults[name] = ch
 		go func(chan asyncPropResult) {
 			v, err := prop.fn()
 			ch <- asyncPropResult{
@@ -89,7 +93,7 @@ func (data *pageData) evalProps() error {
 	}
 
 	// evaluate sync props
-	for name, prop := range syncProps {
+	for name, prop := range data.syncProps {
 		v, err := prop.fn()
 		if err != nil {
 			return err
@@ -99,7 +103,7 @@ func (data *pageData) evalProps() error {
 
 	wg.Wait()
 
-	for name, result := range asyncResults {
+	for name, result := range data.asyncResults {
 		res := <-result
 		if res.err != nil {
 			return res.err
@@ -118,6 +122,18 @@ func (data *pageData) Reset() {
 
 	for k := range data.DeferredProps {
 		delete(data.DeferredProps, k)
+	}
+
+	for k := range data.asyncProps {
+		delete(data.asyncProps, k)
+	}
+
+	for k := range data.syncProps {
+		delete(data.syncProps, k)
+	}
+
+	for k := range data.asyncResults {
+		delete(data.asyncResults, k)
 	}
 
 	data.Url = ""
