@@ -122,6 +122,24 @@ func main() {
 		}
 	})
 
+	mux.HandleFunc("GET /benchme", func(w http.ResponseWriter, r *http.Request) {
+		inertia.SetProp(r, "helperProp", "32 ")
+		err := inertia.Render(w, r, "BenchPage", inertia.Props{
+			"inlineProp": "Geoffrey ",
+			"time":       "go to bed",
+			// two "long-running" prop resolves, so we run them concurrently
+			"concurrentProp": inertia.Resolve(func() (any, error) {
+				return "one!", nil
+			}),
+			"concurrentProp2": inertia.Resolve(func() (any, error) {
+				return "two!", nil
+			}),
+		})
+		if err != nil {
+			log.Printf("Could not render page: %v", err)
+		}
+	})
+
 	mux.HandleFunc("GET /brokenprop", func(w http.ResponseWriter, r *http.Request) {
 		timeOfRender := time.Now().Format(time.TimeOnly)
 		inertia.SetProp(r, "helperProp", "32 "+timeOfRender)

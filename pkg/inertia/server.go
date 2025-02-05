@@ -53,7 +53,6 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 		manifestVersion: version,
 		requestPool: &sync.Pool{
 			New: func() any {
-				fmt.Println("making a new request!")
 				return newRequest(rootTmpl)
 			},
 		},

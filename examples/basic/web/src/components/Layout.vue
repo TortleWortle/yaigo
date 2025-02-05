@@ -10,6 +10,7 @@ import { Link } from "@inertiajs/vue3";
         <Link href="/404">404</Link>
         <Link href="/test">Test</Link>
         <Link href="/brokenprop">Broken prop</Link>
+        <Link href="/benchme">Bench me</Link>
     </nav>
     <div>
         <slot />

@@ -7,7 +7,7 @@ import (
 )
 
 type request struct {
-	propBag  props.Bag
+	propBag  *props.Bag
 	status   int
 	tmpl     *template.Template
 	pageData *pageData

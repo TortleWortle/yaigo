@@ -22,7 +22,7 @@ func GetProp[T any](r *http.Request, key string) (value T, err error) {
 	return getPropCtx[T](r.Context(), key)
 }
 
-func GetPropBag(r *http.Request) (props.Bag, error) {
+func GetPropBag(r *http.Request) (*props.Bag, error) {
 	return getPropBagCtx(r.Context())
 }
 
@@ -54,7 +54,7 @@ func getPropCtx[T any](ctx context.Context, key string) (value T, err error) {
 	return castVal, nil
 }
 
-func getPropBagCtx(ctx context.Context) (props.Bag, error) {
+func getPropBagCtx(ctx context.Context) (*props.Bag, error) {
 	req, err := getRequestCtx(ctx)
 	if err != nil {
 		return nil, err

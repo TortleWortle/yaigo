@@ -17,6 +17,7 @@ type pageData struct {
 	syncProps    map[string]*LazyProp
 	asyncProps   map[string]*LazyProp
 	asyncResults map[string]chan asyncPropResult // replace with syncmap?
+	wg           *sync.WaitGroup
 	dirty        bool
 }
 
@@ -33,6 +34,9 @@ func newPageData() *pageData {
 		asyncProps:     make(map[string]*LazyProp),
 		asyncResults:   make(map[string]chan asyncPropResult),
 		dirty:          false,
+
+		// wait groups are infinitely reusable, so we don't need to reset it
+		wg: &sync.WaitGroup{},
 	}
 }
 
@@ -58,11 +62,7 @@ type asyncPropResult struct {
 	err   error
 }
 
-// todo: store these in pageData so it gets reset and pooled
 func (data *pageData) evalLazyProps() error {
-
-	var wg sync.WaitGroup
-
 	// evaluate deferred props and set the values
 	for k, v := range data.Props {
 		switch v.(type) {
@@ -79,7 +79,7 @@ func (data *pageData) evalLazyProps() error {
 		}
 	}
 
-	wg.Add(len(data.asyncProps))
+	data.wg.Add(len(data.asyncProps))
 	// start evaluating async props first
 	for name, prop := range data.asyncProps {
 		ch := make(chan asyncPropResult, 1)
@@ -90,7 +90,7 @@ func (data *pageData) evalLazyProps() error {
 				value: v,
 				err:   err,
 			}
-			wg.Done()
+			data.wg.Done()
 		}(ch)
 	}
 
@@ -102,8 +102,7 @@ func (data *pageData) evalLazyProps() error {
 		}
 		data.Props[name] = v
 	}
-
-	wg.Wait()
+	data.wg.Wait()
 
 	for name, result := range data.asyncResults {
 		res := <-result
