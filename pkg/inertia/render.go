@@ -69,9 +69,15 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	}
 
 	// filter out deferred props and add them to the deferred props object
+	// todo: instead of filtering, evaluate immediate props
 	err = data.moveDeferredProps()
 	if err != nil {
 		return fmt.Errorf("moving deferred props: %w", err)
+	}
+
+	err = data.evalProps()
+	if err != nil {
+		return fmt.Errorf("evaluating deferred props: %w", err)
 	}
 
 	if isInertia {

@@ -15,18 +15,10 @@ type request struct {
 
 func newRequest(tmpl *template.Template) *request {
 	return &request{
-		propBag: props.NewBag(),
-		status:  http.StatusOK,
-		tmpl:    tmpl,
-		pageData: &pageData{
-			Component:      "",
-			Url:            "",
-			Props:          make(Props),
-			Version:        "",
-			EncryptHistory: false,
-			ClearHistory:   false,
-			DeferredProps:  make(map[string][]string),
-		},
+		propBag:  props.NewBag(),
+		status:   http.StatusOK,
+		tmpl:     tmpl,
+		pageData: newPageData(),
 	}
 }
 

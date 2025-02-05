@@ -82,10 +82,16 @@ func main() {
 		err := inertia.Render(w, r, "TestPage", inertia.Props{
 			"inlineProp": "Geoffrey " + timeOfRender,
 			"time":       timeOfRender,
+			// simple deferred prop, this request will take approx 500ms
 			"deferredProp": inertia.DeferSync(func() (any, error) {
 				time.Sleep(time.Millisecond * 500)
 				return "deferred prop", nil
 			}),
+			// three props part of a propgroup, these will be fetched in a separate request.
+			// this request will take approx 750ms even though we wait for a total of 2000ms
+			// This is because we execute the Defer() calls concurrently
+			// The DeferSync() callbacks are run after starting the Defer() callbacks
+			// This makes the total time 750ms instead of 2000ms
 			"deferredPropInGroup": inertia.Defer(func() (any, error) {
 				time.Sleep(time.Millisecond * 750)
 				return "one!", nil
@@ -99,6 +105,17 @@ func main() {
 				time.Sleep(time.Millisecond * 500)
 				return "three!", nil
 			}).Group("propgroup"),
+			// two "long-running" prop resolves, so we run them concurrently
+			"concurrentProp": inertia.Resolve(func() (any, error) {
+				timeOfRender := time.Now().Format(time.StampMilli)
+				time.Sleep(time.Millisecond * 50)
+				return timeOfRender, nil
+			}),
+			"concurrentProp2": inertia.Resolve(func() (any, error) {
+				time.Sleep(time.Millisecond * 50)
+				timeOfRender := time.Now().Format(time.StampMilli)
+				return timeOfRender, nil
+			}),
 		})
 		if err != nil {
 			log.Printf("Could not render page: %v", err)

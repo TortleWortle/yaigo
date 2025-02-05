@@ -18,7 +18,11 @@ const props = defineProps({
     type: String,
     default: "",
   },
-  deferredFromHelper: {
+  concurrentProp: {
+    type: String,
+    default: "",
+  },
+  concurrentProp2: {
     type: String,
     default: "",
   },

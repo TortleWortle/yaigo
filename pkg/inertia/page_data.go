@@ -15,16 +15,30 @@ type pageData struct {
 	DeferredProps  map[string][]string `json:"deferredProps"`
 }
 
+func newPageData() *pageData {
+	return &pageData{
+		Component:      "",
+		Url:            "",
+		Props:          make(Props),
+		Version:        "",
+		EncryptHistory: false,
+		ClearHistory:   false,
+		DeferredProps:  make(map[string][]string),
+	}
+}
+
 func (data *pageData) moveDeferredProps() error {
 	for name, value := range data.Props {
 		switch value.(type) {
-		case *DeferredProp:
-			prop, ok := value.(*DeferredProp)
+		case *LazyProp:
+			prop, ok := value.(*LazyProp)
 			if !ok {
-				return errors.New("could not cast prop value to DeferredProp")
+				return errors.New("could not cast prop value to LazyProp")
 			}
-			data.DeferredProps[prop.group] = append(data.DeferredProps[prop.group], name)
-			delete(data.Props, name)
+			if prop.deferred {
+				data.DeferredProps[prop.group] = append(data.DeferredProps[prop.group], name)
+				delete(data.Props, name)
+			}
 		}
 	}
 	return nil
@@ -35,9 +49,10 @@ type asyncPropResult struct {
 	err   error
 }
 
+// todo: store these in pageData so it gets reset and pooled
 func (data *pageData) evalProps() error {
-	syncProps := make(map[string]*DeferredProp)
-	asyncProps := make(map[string]*DeferredProp)
+	syncProps := make(map[string]*LazyProp)
+	asyncProps := make(map[string]*LazyProp)
 	asyncResults := make(map[string]chan asyncPropResult)
 
 	var wg sync.WaitGroup
@@ -45,10 +60,10 @@ func (data *pageData) evalProps() error {
 	// evaluate deferred props and set the values
 	for k, v := range data.Props {
 		switch v.(type) {
-		case *DeferredProp:
-			prop, ok := v.(*DeferredProp)
+		case *LazyProp:
+			prop, ok := v.(*LazyProp)
 			if !ok {
-				return errors.New("could not cast prop value to DeferredProp")
+				return errors.New("could not cast prop value to LazyProp")
 			}
 			if prop.sync {
 				syncProps[k] = prop
