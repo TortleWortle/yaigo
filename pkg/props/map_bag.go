@@ -31,9 +31,3 @@ func (b *mapBag) Clear() {
 		delete(b.data, key)
 	}
 }
-
-func (b *mapBag) Merge(items map[string]any) {
-	for key, value := range items {
-		b.Set(key, value)
-	}
-}

@@ -34,8 +34,7 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 		return err
 	}
 
-	bag := req.propBag
-	props := maps.Clone(bag.Items())
+	props := maps.Clone(req.propBag.Items())
 	for k, v := range pageProps {
 		props[k] = v
 	}

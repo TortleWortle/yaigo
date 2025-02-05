@@ -42,9 +42,3 @@ func (b *syncMapBag) Keys() iter.Seq[string] {
 func (b *syncMapBag) Clear() {
 	b.data.Clear()
 }
-
-func (b *syncMapBag) Merge(items map[string]any) {
-	for key, value := range items {
-		b.Set(key, value)
-	}
-}
