@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"time"
 
 	"go.tortle.tech/go-inertia/examples/basic/web"
@@ -16,8 +17,7 @@ import (
 
 func main() {
 	log.Println("preparing dist filesystem")
-	dist := web.Dist
-	frontend, err := fs.Sub(dist, "dist")
+	frontend, err := web.FrontendFS()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -204,6 +204,13 @@ func main() {
 				log.Printf("Could not render page: %v", err)
 			}
 		} else {
+			_, err := fs.Stat(frontend, path.Clean(r.URL.Path)[1:])
+			if errors.Is(err, os.ErrNotExist) {
+				_ = inertia.Render(w, r, "Error", inertia.Props{
+					"status": 404,
+				})
+				return
+			}
 			fileServer.ServeHTTP(w, r)
 		}
 	})
