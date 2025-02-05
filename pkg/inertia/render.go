@@ -29,6 +29,17 @@ func Render(w http.ResponseWriter, r *http.Request, page string, pageProps Props
 }
 
 func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
+	isInertia := r.Header.Get(HeaderInertia) == "true"
+	partialComponent := r.Header.Get(HeaderPartialComponent)
+	isPartial := partialComponent == page
+
+	// detect frontend version changes
+	if isInertia && r.Method == http.MethodGet && r.Header.Get(HeaderVersion) != s.manifestVersion {
+		w.Header().Set(HeaderLocation, r.URL.String())
+		w.WriteHeader(http.StatusConflict)
+		return nil
+	}
+
 	req, err := getRequest(r)
 	if err != nil {
 		return err
@@ -49,17 +60,6 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	data.Component = page
 	data.Url = r.URL.Path
 	data.Version = s.manifestVersion
-
-	isInertia := r.Header.Get(HeaderInertia) == "true"
-	partialComponent := r.Header.Get(HeaderPartialComponent)
-	isPartial := partialComponent == data.Component
-
-	// detect frontend version changes
-	if isInertia && r.Method == http.MethodGet && r.Header.Get(HeaderVersion) != s.manifestVersion {
-		w.Header().Set(HeaderLocation, r.URL.String())
-		w.WriteHeader(http.StatusConflict)
-		return nil
-	}
 
 	// resolve deferred props
 	if isPartial {
