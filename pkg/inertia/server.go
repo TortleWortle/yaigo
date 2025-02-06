@@ -18,6 +18,7 @@ type Server struct {
 	requestPool     *sync.Pool
 	manifestVersion string
 
+	rootTemplate  *template.Template
 	ssrHTTPClient *http.Client
 	ssrURL        string
 }
@@ -60,7 +61,11 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 				return newRequest(rootTmpl)
 			},
 		},
-		ssrURL: opts.ssrServerUrl,
+		ssrHTTPClient: &http.Client{
+			Timeout: opts.ssrTimeout,
+		},
+		ssrURL:       opts.ssrServerUrl,
+		rootTemplate: rootTmpl,
 	}
 
 	return server, nil

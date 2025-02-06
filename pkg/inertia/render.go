@@ -66,7 +66,7 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 
 	// resolve deferred props
 	if isPartial {
-		return handlePartial(w, r, req.status, data)
+		return s.handlePartial(w, r, req.status, data)
 	}
 
 	// filter out deferred props and add them to the deferred props object
@@ -82,22 +82,23 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	}
 
 	if isInertia {
-		return renderJson(w, req.status, data)
+		return s.renderJson(w, req.status, data)
 	}
 	if s.ssrURL != "" {
-		err = renderSSR(req.tmpl, s.ssrURL, w, req.status, data)
+		err = s.renderSSR(w, req.status, data)
 		if err != nil {
 			if errors.Is(err, errCommunicatingToSSRServer) {
-				return renderHtml(req.tmpl, w, req.status, data)
+				// render client side if ssr is unreachable
+				return s.renderHtml(w, req.status, data)
 			}
 			return err
 		}
 		return nil
 	}
-	return renderHtml(req.tmpl, w, req.status, data)
+	return s.renderHtml(w, req.status, data)
 }
 
-func handlePartial(w http.ResponseWriter, r *http.Request, status int, data *pageData) error {
+func (s *Server) handlePartial(w http.ResponseWriter, r *http.Request, status int, data *pageData) error {
 	// can't be avoided ig
 	onlyPropsStr := r.Header.Get(HeaderPartialOnly)
 	if onlyPropsStr != "" {
@@ -121,7 +122,7 @@ func handlePartial(w http.ResponseWriter, r *http.Request, status int, data *pag
 		return fmt.Errorf("evaluating props: %w", err)
 	}
 
-	return renderJson(w, status, data)
+	return s.renderJson(w, status, data)
 }
 
 type ssrResponse struct {
@@ -129,12 +130,10 @@ type ssrResponse struct {
 	Body string   `json:"body"`
 }
 
-var ssrHTTPClient http.Client
-
 var errCommunicatingToSSRServer = errors.New("could not communicate with ssr server")
 
-func renderSSR(rootTemplate *template.Template, ssrUrl string, w http.ResponseWriter, status int, data *pageData) error {
-	renderPath, err := url.JoinPath(ssrUrl, "/render")
+func (s *Server) renderSSR(w http.ResponseWriter, status int, data *pageData) error {
+	renderPath, err := url.JoinPath(s.ssrURL, "/render")
 	if err != nil {
 		return err
 	}
@@ -144,7 +143,7 @@ func renderSSR(rootTemplate *template.Template, ssrUrl string, w http.ResponseWr
 		return errors.Join(errCommunicatingToSSRServer, err)
 	}
 
-	resp, err := ssrHTTPClient.Do(req)
+	resp, err := s.ssrHTTPClient.Do(req)
 	if err != nil {
 		return errors.Join(errCommunicatingToSSRServer, err)
 	}
@@ -160,13 +159,13 @@ func renderSSR(rootTemplate *template.Template, ssrUrl string, w http.ResponseWr
 	w.WriteHeader(status)
 
 	//inertiaRoot := template.HTML(fmt.Sprintf("<div id=\"app\" data-page='%s'></div>", propStr))
-	return rootTemplate.Execute(w, rootTmplData{
+	return s.rootTemplate.Execute(w, rootTmplData{
 		InertiaRoot: template.HTML(ssrRes.Body),
 		InertiaHead: template.HTML(strings.Join(ssrRes.Head, "\n")), // this is for SSR later
 	})
 }
 
-func renderHtml(rootTemplate *template.Template, w http.ResponseWriter, status int, data *pageData) error {
+func (s *Server) renderHtml(w http.ResponseWriter, status int, data *pageData) error {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(status)
 	propStr, err := json.Marshal(data)
@@ -174,13 +173,13 @@ func renderHtml(rootTemplate *template.Template, w http.ResponseWriter, status i
 		return err
 	}
 	inertiaRoot := template.HTML(fmt.Sprintf("<div id=\"app\" data-page='%s'></div>", propStr))
-	return rootTemplate.Execute(w, rootTmplData{
+	return s.rootTemplate.Execute(w, rootTmplData{
 		InertiaRoot: inertiaRoot,
 		InertiaHead: template.HTML(""), // this is for SSR later
 	})
 }
 
-func renderJson(w http.ResponseWriter, status int, data *pageData) error {
+func (s *Server) renderJson(w http.ResponseWriter, status int, data *pageData) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Vary", HeaderInertia)
 	w.Header().Set(HeaderInertia, "true")
