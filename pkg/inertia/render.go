@@ -1,11 +1,14 @@
 package inertia
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"maps"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 )
@@ -81,9 +84,19 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	if isInertia {
 		return renderJson(w, req.status, data)
 	}
-
+	if s.ssrURL != "" {
+		err = renderSSR(req.tmpl, s.ssrURL, w, req.status, data)
+		if err != nil {
+			if errors.Is(err, errCommunicatingToSSRServer) {
+				return renderHtml(req.tmpl, w, req.status, data)
+			}
+			return err
+		}
+		return nil
+	}
 	return renderHtml(req.tmpl, w, req.status, data)
 }
+
 func handlePartial(w http.ResponseWriter, r *http.Request, status int, data *pageData) error {
 	// can't be avoided ig
 	onlyPropsStr := r.Header.Get(HeaderPartialOnly)
@@ -109,6 +122,48 @@ func handlePartial(w http.ResponseWriter, r *http.Request, status int, data *pag
 	}
 
 	return renderJson(w, status, data)
+}
+
+type ssrResponse struct {
+	Head []string `json:"head"`
+	Body string   `json:"body"`
+}
+
+var ssrHTTPClient http.Client
+
+var errCommunicatingToSSRServer = errors.New("could not communicate with ssr server")
+
+func renderSSR(rootTemplate *template.Template, ssrUrl string, w http.ResponseWriter, status int, data *pageData) error {
+	renderPath, err := url.JoinPath(ssrUrl, "/render")
+	if err != nil {
+		return err
+	}
+	pData, err := json.Marshal(data)
+	req, err := http.NewRequest("GET", renderPath, bytes.NewReader(pData))
+	if err != nil {
+		return errors.Join(errCommunicatingToSSRServer, err)
+	}
+
+	resp, err := ssrHTTPClient.Do(req)
+	if err != nil {
+		return errors.Join(errCommunicatingToSSRServer, err)
+	}
+	defer resp.Body.Close()
+
+	var ssrRes ssrResponse
+	err = json.NewDecoder(resp.Body).Decode(&ssrRes)
+	if err != nil {
+		return errors.Join(errCommunicatingToSSRServer, err)
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(status)
+
+	//inertiaRoot := template.HTML(fmt.Sprintf("<div id=\"app\" data-page='%s'></div>", propStr))
+	return rootTemplate.Execute(w, rootTmplData{
+		InertiaRoot: template.HTML(ssrRes.Body),
+		InertiaHead: template.HTML(strings.Join(ssrRes.Head, "\n")), // this is for SSR later
+	})
 }
 
 func renderHtml(rootTemplate *template.Template, w http.ResponseWriter, status int, data *pageData) error {

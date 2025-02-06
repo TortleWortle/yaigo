@@ -6,6 +6,7 @@ import (
 	"github.com/tortlewortle/go-inertia/internal/vite"
 	"html/template"
 	"io/fs"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -16,6 +17,9 @@ type OptFunc = func(o *ServerOpts)
 type Server struct {
 	requestPool     *sync.Pool
 	manifestVersion string
+
+	ssrHTTPClient *http.Client
+	ssrURL        string
 }
 
 func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
@@ -56,6 +60,7 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 				return newRequest(rootTmpl)
 			},
 		},
+		ssrURL: opts.ssrServerUrl,
 	}
 
 	return server, nil
