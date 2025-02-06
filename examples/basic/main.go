@@ -37,9 +37,7 @@ func main() {
 		}
 	} else {
 		log.Println("creating PRODUCTION inertia server")
-		inertiaServer, err = inertia.NewServer(frontend,
-			inertia.WithSSR("http://127.0.0.1:13714", "bundle.mjs"),
-		)
+		inertiaServer, err = inertia.NewServer(frontend)
 		if err != nil {
 			log.Fatal(err)
 		}

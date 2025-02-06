@@ -8,10 +8,10 @@ import (
 	"io"
 )
 
-type ManifestData = map[string]ManifestItem
+type viteManifestData = map[string]ManifestItem
 
 type Manifest struct {
-	data ManifestData
+	data viteManifestData
 }
 
 type ManifestItem struct {
@@ -23,7 +23,7 @@ type ManifestItem struct {
 }
 
 func FromJSON(r io.Reader) (*Manifest, error) {
-	var data ManifestData
+	var data viteManifestData
 
 	err := json.NewDecoder(r).Decode(&data)
 	if err != nil {

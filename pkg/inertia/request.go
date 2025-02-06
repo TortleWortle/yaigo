@@ -1,7 +1,7 @@
 package inertia
 
 import (
-	"github.com/tortlewortle/go-inertia/pkg/props"
+	"github.com/tortlewortle/go-inertia/internal/props"
 	"html/template"
 	"net/http"
 )
