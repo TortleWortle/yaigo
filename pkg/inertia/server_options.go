@@ -1,9 +1,13 @@
 package inertia
 
+import "time"
+
 type ServerOpts struct {
 	viteUrl      string
 	viteScript   string
 	viteTemplate string
+	ssrServerUrl string
+	ssrTimeout   time.Duration
 }
 
 func WithRootTemplate(template string) OptFunc {
@@ -26,10 +30,10 @@ func WithViteDevServer(url string) OptFunc {
 }
 
 // WithSSR enables server-side rendering using the provided ssr server url and bundle bundlePath
-//
-// NOT IMPLEMENTED
-func WithSSR(url, bundlePath string) OptFunc {
-	return func(o *ServerOpts) {
 
+func WithSSR(url string, timeout time.Duration) OptFunc {
+	return func(o *ServerOpts) {
+		o.ssrServerUrl = url
+		o.ssrTimeout = timeout
 	}
 }

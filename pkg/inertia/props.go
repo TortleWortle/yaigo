@@ -3,9 +3,8 @@ package inertia
 import (
 	"context"
 	"errors"
+	"github.com/tortlewortle/go-inertia/internal/props"
 	"net/http"
-
-	"github.com/tortlewortle/go-inertia/pkg/props"
 )
 
 type Props map[string]any

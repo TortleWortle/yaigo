@@ -3,9 +3,10 @@ package inertia
 import (
 	"errors"
 	"fmt"
-	"github.com/tortlewortle/go-inertia/pkg/vite"
+	"github.com/tortlewortle/go-inertia/internal/vite"
 	"html/template"
 	"io/fs"
+	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -16,6 +17,10 @@ type OptFunc = func(o *ServerOpts)
 type Server struct {
 	requestPool     *sync.Pool
 	manifestVersion string
+
+	rootTemplate  *template.Template
+	ssrHTTPClient *http.Client
+	ssrURL        string
 }
 
 func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
@@ -56,6 +61,11 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 				return newRequest(rootTmpl)
 			},
 		},
+		ssrHTTPClient: &http.Client{
+			Timeout: opts.ssrTimeout,
+		},
+		ssrURL:       opts.ssrServerUrl,
+		rootTemplate: rootTmpl,
 	}
 
 	return server, nil
