@@ -162,7 +162,7 @@ func(w http.ResponseWriter, r *http.Request) {
 
 ## Todo
 ### Priorities
-- [ ] SSR
+- [x] SSR
 - [ ] test coverage, the state of tests is sad right now
 - [ ] test helpers for testing your own application
 - [ ] frontend starter kits for vue, react and svelte
