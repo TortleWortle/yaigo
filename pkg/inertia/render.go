@@ -6,10 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"maps"
 	"net/http"
 	"net/url"
-	"slices"
 	"strings"
 )
 
@@ -52,12 +50,14 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 	// a little yank, but if we ever fail to render a page and wish to render an error-page, we need to clear the props of the request.
 	data.resetIfDirty()
 
-	for k, v := range req.propBag.Items() {
-		data.Props[k] = v
-	}
+	bag := req.propBag
+	bag.Checkpoint()
 
 	for k, v := range pageProps {
-		data.Props[k] = v
+		err = bag.Set(k, v)
+		if err != nil {
+			return fmt.Errorf("transferring props: %w", err)
+		}
 	}
 
 	data.Component = page
@@ -66,63 +66,55 @@ func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pag
 
 	// resolve deferred props
 	if isPartial {
-		return s.handlePartial(w, r, req.status, data)
+		return req.handlePartial(s, w, r, data)
 	}
 
-	// filter out deferred props and add them to the deferred props object
-	err = data.moveDeferredProps()
+	// from this point there is no special logic in prop eval
+	data.Props, data.DeferredProps, err = bag.GetProps()
 	if err != nil {
-		return fmt.Errorf("moving deferred props: %w", err)
+		return fmt.Errorf("loading props: %w", err)
 	}
-
-	// evaluate any remaining LazyProps
-	err = data.evalLazyProps()
-	if err != nil {
-		return fmt.Errorf("evaluating deferred props: %w", err)
-	}
+	data.DeferredProps = bag.GetDeferredProps()
 
 	if isInertia {
-		return s.renderJson(w, req.status, data)
+		return req.renderJson(w, data)
 	}
+
 	if s.ssrURL != "" {
-		err = s.renderSSR(w, req.status, data)
+		err = req.renderSSR(s, w, data)
 		if err != nil {
 			if errors.Is(err, errCommunicatingToSSRServer) {
 				// render client side if ssr is unreachable
-				return s.renderHtml(w, req.status, data)
+				return req.renderHtml(s, w, data)
 			}
 			return err
 		}
 		return nil
 	}
-	return s.renderHtml(w, req.status, data)
+	return req.renderHtml(s, w, data)
 }
 
-func (s *Server) handlePartial(w http.ResponseWriter, r *http.Request, status int, data *pageData) error {
-	// can't be avoided ig
+func (req *request) handlePartial(s *Server, w http.ResponseWriter, r *http.Request, data *pageData) error {
+	bag := req.propBag
 	onlyPropsStr := r.Header.Get(HeaderPartialOnly)
 	if onlyPropsStr != "" {
 		onlyProps := strings.Split(onlyPropsStr, ",")
-		maps.DeleteFunc(data.Props, func(k string, v any) bool {
-			return !slices.Contains(onlyProps, k)
-		})
+		bag.Only(onlyProps)
 	}
 
 	// can't realistically be avoided
 	exceptPropsStr := r.Header.Get(HeaderPartialExcept)
 	if exceptPropsStr != "" {
 		exceptProps := strings.Split(exceptPropsStr, ",")
-		maps.DeleteFunc(data.Props, func(k string, v any) bool {
-			return slices.Contains(exceptProps, k)
-		})
+		bag.Except(exceptProps)
 	}
-
-	err := data.evalLazyProps()
+	var err error
+	data.Props, _, err = bag.GetProps()
 	if err != nil {
-		return fmt.Errorf("evaluating props: %w", err)
+		return err
 	}
-
-	return s.renderJson(w, status, data)
+	// eval props
+	return req.renderJson(w, data)
 }
 
 type ssrResponse struct {
@@ -132,18 +124,18 @@ type ssrResponse struct {
 
 var errCommunicatingToSSRServer = errors.New("could not communicate with ssr server")
 
-func (s *Server) renderSSR(w http.ResponseWriter, status int, data *pageData) error {
+func (req *request) renderSSR(s *Server, w http.ResponseWriter, data *pageData) error {
 	renderPath, err := url.JoinPath(s.ssrURL, "/render")
 	if err != nil {
 		return err
 	}
 	pData, err := json.Marshal(data)
-	req, err := http.NewRequest("GET", renderPath, bytes.NewReader(pData))
+	ssrReq, err := http.NewRequest("GET", renderPath, bytes.NewReader(pData))
 	if err != nil {
 		return errors.Join(errCommunicatingToSSRServer, err)
 	}
 
-	resp, err := s.ssrHTTPClient.Do(req)
+	resp, err := s.ssrHTTPClient.Do(ssrReq)
 	if err != nil {
 		return errors.Join(errCommunicatingToSSRServer, err)
 	}
@@ -156,7 +148,7 @@ func (s *Server) renderSSR(w http.ResponseWriter, status int, data *pageData) er
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(status)
+	w.WriteHeader(req.status)
 
 	baseHead := s.inertiaBaseHead()
 	return s.rootTemplate.Execute(w, rootTmplData{
@@ -191,9 +183,9 @@ func (s *Server) reactRefreshScript(attrs []template.HTMLAttr) template.HTML {
 </script>`, attributes, s.viteDevUrl))
 }
 
-func (s *Server) renderHtml(w http.ResponseWriter, status int, data *pageData) error {
+func (req *request) renderHtml(s *Server, w http.ResponseWriter, data *pageData) error {
 	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(status)
+	w.WriteHeader(req.status)
 	propStr, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -205,11 +197,11 @@ func (s *Server) renderHtml(w http.ResponseWriter, status int, data *pageData) e
 	})
 }
 
-func (s *Server) renderJson(w http.ResponseWriter, status int, data *pageData) error {
+func (req *request) renderJson(w http.ResponseWriter, data *pageData) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Vary", HeaderInertia)
 	w.Header().Set(HeaderInertia, "true")
-	w.WriteHeader(status)
+	w.WriteHeader(req.status)
 	err := json.NewEncoder(w).Encode(data)
 	if err != nil {
 		return err
