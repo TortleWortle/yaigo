@@ -30,7 +30,7 @@ func main() {
 	if appEnv == "local" {
 		log.Println("creating LOCAL inertia server")
 		inertiaServer, err = inertia.NewServer(frontend,
-			inertia.WithViteDevServer("http://localhost:5173"),
+			inertia.WithViteDevServer("http://localhost:5173", false),
 		)
 		if err != nil {
 			log.Fatal(err)

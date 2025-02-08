@@ -45,6 +45,7 @@ func NewBag() *Bag {
 
 		valueProps: make(map[string]Prop[any]),
 
+		// replace me with a slice.
 		syncPropsMap:  make(map[string]Prop[*LazyProp]),
 		asyncPropsMap: make(map[string]Prop[*LazyProp]),
 		wg:            &sync.WaitGroup{},
@@ -100,11 +101,19 @@ func (b *Bag) Except(propNames []string) *Bag {
 	return b
 }
 
-// GetProps calculates, evaluates and returns the props for the current render cycle
+// GetProps calculates, evaluates, and returns the props for the current render cycle
 //
 // Deferred props will only be loaded when explicitly asked for.
-func (b *Bag) GetProps() (map[string]any, map[string][]string, error) {
+func (b *Bag) GetProps() (map[string]any, error) {
 	b.chuckDeferredProps()
+
+	// idea: syncmap for results
+	// pros: less loops, simpler execution of props
+	// cons: no error handling if a prop handler fails unless we keep track of errors separately.
+	//
+	// use sync errgroup
+	// pros: track errors
+	// cons: need to accept context inside of the callback functions now
 
 	// copy value props over
 	for _, prop := range b.valueProps {
@@ -122,7 +131,7 @@ func (b *Bag) GetProps() (map[string]any, map[string][]string, error) {
 	for _, p := range b.syncPropsMap {
 		p.value.Execute()
 		if p.value.err != nil {
-			return b.props, b.deferredProps, p.value.err
+			return b.props, p.value.err
 		}
 		b.props[p.name] = p.value.result
 	}
@@ -133,15 +142,15 @@ func (b *Bag) GetProps() (map[string]any, map[string][]string, error) {
 	// todo: replace with an already filtered map
 	for _, p := range b.asyncPropsMap {
 		if p.value.err != nil {
-			return b.props, b.deferredProps, p.value.err
+			return b.props, p.value.err
 		}
 		b.props[p.name] = p.value.result
 	}
 
-	return b.props, b.deferredProps, nil
+	return b.props, nil
 }
 
-// GetDeferredProps calculates and returns the props for the current render cycle
+// GetDeferredProps returns the props that were deferred after a GetProps call
 func (b *Bag) GetDeferredProps() map[string][]string {
 	return b.deferredProps
 }
@@ -208,6 +217,7 @@ func (b *Bag) Clear() {
 }
 
 // chuckDeferredProps throws out any props that are not meant to be loaded
+// while keeping track of them in a map for inertia to use
 func (b *Bag) chuckDeferredProps() {
 	maps.DeleteFunc(b.asyncPropsMap, func(s string, p Prop[*LazyProp]) bool {
 		// skip deferred if we don't want deferred
