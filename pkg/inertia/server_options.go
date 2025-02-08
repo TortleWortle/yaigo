@@ -7,6 +7,7 @@ type ServerOpts struct {
 	viteScript   string
 	viteTemplate string
 	ssrServerUrl string
+	reactRefresh bool
 	ssrTimeout   time.Duration
 }
 
@@ -23,9 +24,10 @@ func WithScript(script string) OptFunc {
 }
 
 // WithViteDevServer loads the script from the url instead of the filesystem, this is for hot-reloading
-func WithViteDevServer(url string) OptFunc {
+func WithViteDevServer(url string, react bool) OptFunc {
 	return func(o *ServerOpts) {
 		o.viteUrl = url
+		o.reactRefresh = react
 	}
 }
 

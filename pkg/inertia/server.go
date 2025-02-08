@@ -21,6 +21,9 @@ type Server struct {
 	rootTemplate  *template.Template
 	ssrHTTPClient *http.Client
 	ssrURL        string
+
+	reactRefresh bool
+	viteDevUrl   string
 }
 
 func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
@@ -66,6 +69,9 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 		},
 		ssrURL:       opts.ssrServerUrl,
 		rootTemplate: rootTmpl,
+
+		viteDevUrl:   opts.viteUrl,
+		reactRefresh: opts.reactRefresh,
 	}
 
 	return server, nil

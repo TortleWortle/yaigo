@@ -158,11 +158,37 @@ func (s *Server) renderSSR(w http.ResponseWriter, status int, data *pageData) er
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(status)
 
-	//inertiaRoot := template.HTML(fmt.Sprintf("<div id=\"app\" data-page='%s'></div>", propStr))
+	baseHead := s.inertiaBaseHead()
 	return s.rootTemplate.Execute(w, rootTmplData{
 		InertiaRoot: template.HTML(ssrRes.Body),
-		InertiaHead: template.HTML(strings.Join(ssrRes.Head, "\n")), // this is for SSR later
+		InertiaHead: baseHead + "\n" + template.HTML(strings.Join(ssrRes.Head, "\n")), // this is for SSR later
 	})
+}
+
+func (s *Server) inertiaBaseHead() template.HTML {
+	if s.reactRefresh {
+		return s.reactRefreshScript(nil)
+	}
+	return ""
+}
+
+func (s *Server) reactRefreshScript(attrs []template.HTMLAttr) template.HTML {
+	var attributes string
+	if attrs != nil {
+		var attrBuilder strings.Builder
+		for _, a := range attrs {
+			attrBuilder.WriteString(string(a))
+			attrBuilder.WriteString(" ")
+		}
+		attributes = attrBuilder.String()
+	}
+	return template.HTML(fmt.Sprintf(`<script type="module" %s>
+	import RefreshRuntime from '%s/@react-refresh'
+	RefreshRuntime.injectIntoGlobalHook(window)
+	window.$RefreshReg$ = () => {}
+	window.$RefreshSig$ = () => (type) => type
+	window.__vite_plugin_react_preamble_installed__ = true
+</script>`, attributes, s.viteDevUrl))
 }
 
 func (s *Server) renderHtml(w http.ResponseWriter, status int, data *pageData) error {
@@ -175,7 +201,7 @@ func (s *Server) renderHtml(w http.ResponseWriter, status int, data *pageData) e
 	inertiaRoot := template.HTML(fmt.Sprintf("<div id=\"app\" data-page='%s'></div>", propStr))
 	return s.rootTemplate.Execute(w, rootTmplData{
 		InertiaRoot: inertiaRoot,
-		InertiaHead: template.HTML(""), // this is for SSR later
+		InertiaHead: s.inertiaBaseHead(),
 	})
 }
 
