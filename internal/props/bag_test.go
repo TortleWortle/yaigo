@@ -5,6 +5,19 @@ import (
 	"testing"
 )
 
+func TestBag_Except(t *testing.T) {
+	// todo: test if it returns all except for a certain value
+}
+
+func TestBag_Only(t *testing.T) {
+	// todo: test if it returns deferred (it should)
+	// todo: test if it returns only the specific props
+}
+
+func TestBag_OnlyExcept(t *testing.T) {
+	// todo: test if only and except work well in tandem, so 2 deferred props, two normal ones and then exception one of each
+}
+
 func TestBag_Checkpoint(t *testing.T) {
 	b := NewBag()
 
