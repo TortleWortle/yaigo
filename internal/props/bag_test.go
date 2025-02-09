@@ -6,16 +6,119 @@ import (
 )
 
 func TestBag_Except(t *testing.T) {
-	// todo: test if it returns all except for a certain value
+	b := NewBag()
+	if err := b.Set("username", "john"); err != nil {
+		t.Error(err)
+	}
+	if err := b.Set("age", 32); err != nil {
+		t.Error(err)
+	}
+	if err := b.Set("deferred", NewLazyProp(func() (any, error) {
+		return true, nil
+	}, "default", true, false)); err != nil {
+		t.Error(err)
+	}
+	if err := b.Set("async", NewLazyProp(func() (any, error) {
+		return true, nil
+	}, "default", false, false)); err != nil {
+		t.Error(err)
+	}
+	b.Except([]string{"async"})
+	props, err := b.GetProps()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if _, ok := props["username"]; !ok {
+		t.Error("username must be returned")
+	}
+	if _, ok := props["age"]; !ok {
+		t.Error("age must be returned")
+	}
+	if _, ok := props["deferred"]; ok {
+		t.Error("deferred must not be returned")
+	}
+	if _, ok := props["async"]; ok {
+		t.Error("async must not be returned")
+	}
 }
 
 func TestBag_Only(t *testing.T) {
-	// todo: test if it returns deferred (it should)
-	// todo: test if it returns only the specific props
+	b := NewBag()
+	if err := b.Set("username", "john"); err != nil {
+		t.Error(err)
+	}
+	if err := b.Set("age", 32); err != nil {
+		t.Error(err)
+	}
+	if err := b.Set("deferred", NewLazyProp(func() (any, error) {
+		return true, nil
+	}, "default", true, false)); err != nil {
+		t.Error(err)
+	}
+	if err := b.Set("async", NewLazyProp(func() (any, error) {
+		return true, nil
+	}, "default", false, false)); err != nil {
+		t.Error(err)
+	}
+	b.Only([]string{"async", "deferred", "age"})
+	props, err := b.GetProps()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if _, ok := props["username"]; ok {
+		t.Error("username must not be returned")
+	}
+	if _, ok := props["age"]; !ok {
+		t.Error("age must be returned")
+	}
+	if _, ok := props["deferred"]; !ok {
+		t.Error("deferred must be returned")
+	}
+	if _, ok := props["async"]; !ok {
+		t.Error("async must be returned")
+	}
 }
 
 func TestBag_OnlyExcept(t *testing.T) {
-	// todo: test if only and except work well in tandem, so 2 deferred props, two normal ones and then exception one of each
+	b := NewBag()
+	if err := b.Set("username", "john"); err != nil {
+		t.Error(err)
+	}
+	if err := b.Set("age", 32); err != nil {
+		t.Error(err)
+	}
+	if err := b.Set("deferred", NewLazyProp(func() (any, error) {
+		return true, nil
+	}, "default", true, false)); err != nil {
+		t.Error(err)
+	}
+	if err := b.Set("async", NewLazyProp(func() (any, error) {
+		return true, nil
+	}, "default", false, false)); err != nil {
+		t.Error(err)
+	}
+
+	b.Except([]string{"age", "deferred"})
+	b.Only([]string{"async", "deferred", "age"})
+	props, err := b.GetProps()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if _, ok := props["username"]; ok {
+		t.Error("username must not be returned")
+	}
+	if _, ok := props["age"]; ok {
+		t.Error("age must not be returned")
+	}
+	if _, ok := props["deferred"]; ok {
+		t.Error("deferred must not be returned")
+	}
+	if _, ok := props["async"]; !ok {
+		t.Error("async must be returned")
+	}
 }
 
 func TestBag_Checkpoint2(t *testing.T) {
@@ -25,7 +128,6 @@ func TestBag_Checkpoint2(t *testing.T) {
 		t.Error(err)
 	}
 	b.Checkpoint()
-	// set username again
 	err = b.Set("username", "doe")
 	if err != nil {
 		t.Error(err)

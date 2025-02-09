@@ -120,7 +120,9 @@ func (b *Bag) GetProps() (map[string]any, error) {
 
 	// copy value props over
 	for _, prop := range b.valueProps {
-		b.props[prop.name] = prop.value
+		if b.includeProp(prop.name) {
+			b.props[prop.name] = prop.value
+		}
 	}
 
 	for _, p := range b.asyncPropsMap {
@@ -248,11 +250,11 @@ func (b *Bag) chuckDeferredProps() {
 }
 
 func (b *Bag) includeProp(name string) bool {
-	if len(b.onlyProps) > 0 && !slices.Contains(b.onlyProps, name) {
+	if slices.Contains(b.exceptProps, name) {
 		return false
 	}
 
-	if len(b.exceptProps) > 0 && slices.Contains(b.exceptProps, name) {
+	if len(b.onlyProps) > 0 && !slices.Contains(b.onlyProps, name) {
 		return false
 	}
 
