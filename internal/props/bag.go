@@ -2,7 +2,6 @@ package props
 
 import (
 	"errors"
-	"maps"
 	"slices"
 	"sync"
 )
@@ -12,14 +11,13 @@ type asyncPropResult struct {
 	err   error
 }
 
-// todo: sync.Pool for Prop
-
 type Bag struct {
 	deferredProps map[string][]string
 	props         map[string]any
-	valueProps    []Prop[any]
-	syncPropsMap  map[string]Prop[*LazyProp]
-	asyncPropsMap map[string]Prop[*LazyProp]
+
+	valueProps []Prop[any]
+	syncProps  []Prop[*LazyProp]
+	asyncProps []Prop[*LazyProp]
 
 	onlyProps   []string
 	exceptProps []string
@@ -43,10 +41,7 @@ func NewBag() *Bag {
 		deferredProps: make(map[string][]string),
 		props:         make(map[string]any),
 
-		// replace me with a slice.
-		syncPropsMap:  make(map[string]Prop[*LazyProp]),
-		asyncPropsMap: make(map[string]Prop[*LazyProp]),
-		wg:            &sync.WaitGroup{},
+		wg: &sync.WaitGroup{},
 	}
 }
 
@@ -60,24 +55,29 @@ func (b *Bag) Checkpoint() {
 	b.dirty = true
 }
 
-// Rollback removes any props that are considered dirty
-func (b *Bag) rollback() {
-	maps.DeleteFunc(b.syncPropsMap, func(s string, p Prop[*LazyProp]) bool {
-		return p.dirty
-	})
-
-	maps.DeleteFunc(b.asyncPropsMap, func(s string, p Prop[*LazyProp]) bool {
-		return p.dirty
-	})
-
+func filterPropSlice[T any](slice []Prop[T], check func(Prop[T]) bool) []Prop[T] {
 	var i int
-	for _, p := range b.valueProps {
-		if !p.dirty {
-			b.valueProps[i] = p
+	for _, p := range slice {
+		if check(p) {
+			slice[i] = p
 			i++
 		}
 	}
-	b.valueProps = b.valueProps[:i]
+	return slice[:i]
+}
+
+// Rollback removes any props that are considered dirty
+func (b *Bag) rollback() {
+	b.asyncProps = filterPropSlice(b.asyncProps, func(p Prop[*LazyProp]) bool {
+		return !p.dirty
+	})
+
+	b.syncProps = filterPropSlice(b.syncProps, func(p Prop[*LazyProp]) bool {
+		return !p.dirty
+	})
+	b.valueProps = filterPropSlice(b.valueProps, func(p Prop[any]) bool {
+		return !p.dirty
+	})
 
 	for k := range b.props {
 		delete(b.props, k)
@@ -125,7 +125,7 @@ func (b *Bag) GetProps() (map[string]any, error) {
 		}
 	}
 
-	for _, p := range b.asyncPropsMap {
+	for _, p := range b.asyncProps {
 		b.wg.Add(1)
 		go func() {
 			p.value.Execute()
@@ -133,7 +133,7 @@ func (b *Bag) GetProps() (map[string]any, error) {
 		}()
 	}
 
-	for _, p := range b.syncPropsMap {
+	for _, p := range b.syncProps {
 		p.value.Execute()
 		if p.value.err != nil {
 			return b.props, p.value.err
@@ -145,7 +145,7 @@ func (b *Bag) GetProps() (map[string]any, error) {
 	b.wg.Wait()
 
 	// todo: replace with an already filtered map
-	for _, p := range b.asyncPropsMap {
+	for _, p := range b.asyncProps {
 		if p.value.err != nil {
 			return b.props, p.value.err
 		}
@@ -169,19 +169,19 @@ func (b *Bag) Set(key string, value any) error {
 		}
 
 		if p.sync {
-			b.syncPropsMap[key] = Prop[*LazyProp]{
+			b.syncProps = append(b.syncProps, Prop[*LazyProp]{
 				name:     key,
 				value:    p,
 				dirty:    b.dirty,
 				deferred: p.deferred,
-			}
+			})
 		} else {
-			b.asyncPropsMap[key] = Prop[*LazyProp]{
+			b.asyncProps = append(b.asyncProps, Prop[*LazyProp]{
 				name:     key,
 				value:    p,
 				dirty:    b.dirty,
 				deferred: p.deferred,
-			}
+			})
 		}
 	default:
 		b.valueProps = append(b.valueProps, Prop[any]{
@@ -205,13 +205,8 @@ func (b *Bag) Clear() {
 		delete(b.deferredProps, k)
 	}
 
-	for k := range b.asyncPropsMap {
-		delete(b.asyncPropsMap, k)
-	}
-
-	for k := range b.syncPropsMap {
-		delete(b.syncPropsMap, k)
-	}
+	b.asyncProps = nil
+	b.syncProps = nil
 
 	b.loadDeferred = false
 	b.dirty = false
@@ -222,30 +217,32 @@ func (b *Bag) Clear() {
 // chuckDeferredProps throws out any props that are not meant to be loaded
 // while keeping track of them in a map for inertia to use
 func (b *Bag) chuckDeferredProps() {
-	maps.DeleteFunc(b.asyncPropsMap, func(s string, p Prop[*LazyProp]) bool {
+	b.asyncProps = filterPropSlice(b.asyncProps, func(p Prop[*LazyProp]) bool {
 		// skip deferred if we don't want deferred
 		if p.deferred && !b.loadDeferred {
 			b.deferredProps[p.value.group] = append(b.deferredProps[p.value.group], p.name)
-			return true
+			return false
 		}
+
 		if !b.includeProp(p.name) {
-			return true
+			return false
 		}
-		return false
+
+		return true
 	})
 
-	maps.DeleteFunc(b.syncPropsMap, func(s string, p Prop[*LazyProp]) bool {
+	b.syncProps = filterPropSlice(b.syncProps, func(p Prop[*LazyProp]) bool {
 		// skip deferred if we don't want deferred
 		if p.deferred && !b.loadDeferred {
 			b.deferredProps[p.value.group] = append(b.deferredProps[p.value.group], p.name)
-			return true
+			return false
 		}
 
 		if !b.includeProp(p.name) {
-			return true
+			return false
 		}
 
-		return false
+		return true
 	})
 }
 
