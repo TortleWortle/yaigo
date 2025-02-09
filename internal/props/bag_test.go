@@ -18,6 +18,49 @@ func TestBag_OnlyExcept(t *testing.T) {
 	// todo: test if only and except work well in tandem, so 2 deferred props, two normal ones and then exception one of each
 }
 
+func TestBag_Checkpoint2(t *testing.T) {
+	b := NewBag()
+	err := b.Set("username", "john")
+	if err != nil {
+		t.Error(err)
+	}
+	b.Checkpoint()
+	// set username again
+	err = b.Set("username", "doe")
+	if err != nil {
+		t.Error(err)
+	}
+
+	props, err := b.GetProps()
+	if err != nil {
+		t.Error(err)
+	}
+
+	username, ok := props["username"]
+	if !ok {
+		t.Error("username should be set")
+	}
+
+	if username != "doe" {
+		t.Errorf("username should be 'doe', got: %s", username)
+	}
+	b.Checkpoint()
+
+	props, err = b.GetProps()
+	if err != nil {
+		t.Error(err)
+	}
+
+	username, ok = props["username"]
+	if !ok {
+		t.Error("username should be set")
+	}
+
+	if username != "john" {
+		t.Errorf("username should be 'john', got: %s", username)
+	}
+}
+
 func TestBag_Checkpoint(t *testing.T) {
 	b := NewBag()
 

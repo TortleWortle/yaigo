@@ -17,7 +17,7 @@ type asyncPropResult struct {
 type Bag struct {
 	deferredProps map[string][]string
 	props         map[string]any
-	valueProps    map[string]Prop[any]
+	valueProps    []Prop[any]
 	syncPropsMap  map[string]Prop[*LazyProp]
 	asyncPropsMap map[string]Prop[*LazyProp]
 
@@ -42,8 +42,6 @@ func NewBag() *Bag {
 		// re-usable ish
 		deferredProps: make(map[string][]string),
 		props:         make(map[string]any),
-
-		valueProps: make(map[string]Prop[any]),
 
 		// replace me with a slice.
 		syncPropsMap:  make(map[string]Prop[*LazyProp]),
@@ -72,9 +70,14 @@ func (b *Bag) rollback() {
 		return p.dirty
 	})
 
-	maps.DeleteFunc(b.valueProps, func(s string, p Prop[any]) bool {
-		return p.dirty
-	})
+	var i int
+	for _, p := range b.valueProps {
+		if !p.dirty {
+			b.valueProps[i] = p
+			i++
+		}
+	}
+	b.valueProps = b.valueProps[:i]
 
 	for k := range b.props {
 		delete(b.props, k)
@@ -179,12 +182,12 @@ func (b *Bag) Set(key string, value any) error {
 			}
 		}
 	default:
-		b.valueProps[key] = Prop[any]{
+		b.valueProps = append(b.valueProps, Prop[any]{
 			name:     key,
 			value:    value,
 			dirty:    b.dirty,
 			deferred: false,
-		}
+		})
 	}
 	return nil
 }
@@ -194,9 +197,7 @@ func (b *Bag) Clear() {
 		delete(b.props, key)
 	}
 
-	for key := range b.valueProps {
-		delete(b.valueProps, key)
-	}
+	b.valueProps = nil
 
 	for k := range b.deferredProps {
 		delete(b.deferredProps, k)
@@ -243,10 +244,6 @@ func (b *Bag) chuckDeferredProps() {
 		}
 
 		return false
-	})
-
-	maps.DeleteFunc(b.valueProps, func(s string, p Prop[any]) bool {
-		return !b.includeProp(p.name)
 	})
 }
 
