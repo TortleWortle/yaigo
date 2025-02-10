@@ -2,9 +2,12 @@
 Go adapter for InertiaJS
 
 ## Client usage
+You can view an example here: https://github.com/TortleWortle/go-inertia-example-vue
+
 ### Starter kits
 Since the client-side installation deviates a little bit from the normal setup starter kits will be made available for use.
 (soon)
+
 ### Installation
 Client side usage and instructions can be read here: https://inertiajs.com/
 
@@ -159,7 +162,7 @@ func(w http.ResponseWriter, r *http.Request) {
 
 ## Todo
 ### Priorities
-- [ ] SSR
+- [x] SSR
 - [ ] test coverage, the state of tests is sad right now
 - [ ] test helpers for testing your own application
 - [ ] frontend starter kits for vue, react and svelte
