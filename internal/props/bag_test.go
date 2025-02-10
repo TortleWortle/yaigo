@@ -15,12 +15,12 @@ func TestBag_Except(t *testing.T) {
 	}
 	if err := b.Set("deferred", NewLazyProp(func() (any, error) {
 		return true, nil
-	}, "default", true, false)); err != nil {
+	}, true, false)); err != nil {
 		t.Error(err)
 	}
 	if err := b.Set("async", NewLazyProp(func() (any, error) {
 		return true, nil
-	}, "default", false, false)); err != nil {
+	}, false, false)); err != nil {
 		t.Error(err)
 	}
 	b.Except([]string{"async"})
@@ -53,12 +53,12 @@ func TestBag_Only(t *testing.T) {
 	}
 	if err := b.Set("deferred", NewLazyProp(func() (any, error) {
 		return true, nil
-	}, "default", true, false)); err != nil {
+	}, true, false)); err != nil {
 		t.Error(err)
 	}
 	if err := b.Set("async", NewLazyProp(func() (any, error) {
 		return true, nil
-	}, "default", false, false)); err != nil {
+	}, false, false)); err != nil {
 		t.Error(err)
 	}
 	b.Only([]string{"async", "deferred", "age"})
@@ -91,12 +91,12 @@ func TestBag_OnlyExcept(t *testing.T) {
 	}
 	if err := b.Set("deferred", NewLazyProp(func() (any, error) {
 		return true, nil
-	}, "default", true, false)); err != nil {
+	}, true, false)); err != nil {
 		t.Error(err)
 	}
 	if err := b.Set("async", NewLazyProp(func() (any, error) {
 		return true, nil
-	}, "default", false, false)); err != nil {
+	}, false, false)); err != nil {
 		t.Error(err)
 	}
 
@@ -178,27 +178,27 @@ func TestBag_Checkpoint(t *testing.T) {
 	}
 	err = b.Set("deferSync", NewLazyProp(func() (any, error) {
 		return true, nil
-	}, "default", true, true))
+	}, true, true))
 	if err != nil {
 		t.Error(err)
 	}
 	err = b.Set("defer", NewLazyProp(func() (any, error) {
 		return true, nil
-	}, "default", true, false))
+	}, true, false))
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = b.Set("sync", NewLazyProp(func() (any, error) {
 		return true, nil
-	}, "default", false, true))
+	}, false, true))
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = b.Set("async", NewLazyProp(func() (any, error) {
 		return true, nil
-	}, "default", false, false))
+	}, false, false))
 	if err != nil {
 		t.Error(err)
 	}
@@ -275,7 +275,7 @@ func TestBag_SetLazySync(t *testing.T) {
 
 	err := b.Set("username", NewLazyProp(func() (any, error) {
 		return "john", nil
-	}, "default", false, true))
+	}, false, true))
 	if err != nil {
 		t.Error(err)
 	}
@@ -301,7 +301,7 @@ func TestBag_SetLazy(t *testing.T) {
 
 	err := b.Set("username", NewLazyProp(func() (any, error) {
 		return "john", nil
-	}, "default", false, false))
+	}, false, false))
 	if err != nil {
 		t.Error(err)
 	}
@@ -327,21 +327,21 @@ func TestBag_SetDeferredSync(t *testing.T) {
 
 	err := b.Set("username", NewLazyProp(func() (any, error) {
 		return "john", nil
-	}, "default", true, true))
+	}, true, true))
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = b.Set("age", NewLazyProp(func() (any, error) {
 		return 32, nil
-	}, "age", true, true))
+	}, true, true).Group("age"))
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = b.Set("hobby", NewLazyProp(func() (any, error) {
 		return "knitting", nil
-	}, "default", true, true))
+	}, true, true))
 	if err != nil {
 		t.Error(err)
 	}
@@ -396,21 +396,21 @@ func TestBag_SetDeferred(t *testing.T) {
 
 	err := b.Set("username", NewLazyProp(func() (any, error) {
 		return "john", nil
-	}, "default", true, false))
+	}, true, false))
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = b.Set("age", NewLazyProp(func() (any, error) {
 		return 32, nil
-	}, "age", true, true))
+	}, true, true).Group("age"))
 	if err != nil {
 		t.Error(err)
 	}
 
 	err = b.Set("hobby", NewLazyProp(func() (any, error) {
 		return "knitting", nil
-	}, "default", true, true))
+	}, true, true))
 	if err != nil {
 		t.Error(err)
 	}

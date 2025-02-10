@@ -6,7 +6,8 @@ import { Link } from "@inertiajs/vue3";
         <Link href="/">Home</Link>
         <Link href="/news">News</Link>
         <Link href="/about">About</Link>
-        <Link href="/jeff">Jeff</Link>
+        <Link href="/jeff">Jeff (normal api)</Link>
+        <Link href="/geoffrey">Geoffrey (helper api)</Link>
         <Link href="/404">404</Link>
         <Link href="/test">Test</Link>
         <Link href="/clear_history">Clear history</Link>

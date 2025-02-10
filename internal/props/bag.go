@@ -15,15 +15,15 @@ type Bag struct {
 	deferredProps map[string][]string
 	props         map[string]any
 
-	valueProps []Prop[any]
-	syncProps  []Prop[*LazyProp]
-	asyncProps []Prop[*LazyProp]
+	valueProps []*Prop[any]
+	syncProps  []*Prop[*LazyProp]
+	asyncProps []*Prop[*LazyProp]
 
 	onlyProps   []string
 	exceptProps []string
 
 	wg           *sync.WaitGroup
-	dirty        bool
+	checkpoint   bool
 	loadDeferred bool
 }
 
@@ -45,17 +45,17 @@ func NewBag() *Bag {
 	}
 }
 
-// Checkpoint sets the bag as dirty and will mark any following incoming props as dirty as well
+// Checkpoint sets the bag as checkpoint and will mark any following incoming props as checkpoint as well
 //
-// Will remove any dirty
+// Will remove any checkpoint
 func (b *Bag) Checkpoint() {
-	if b.dirty {
+	if b.checkpoint {
 		b.rollback()
 	}
-	b.dirty = true
+	b.checkpoint = true
 }
 
-func filterPropSlice[T any](slice []Prop[T], check func(Prop[T]) bool) []Prop[T] {
+func filterPropSlice[T any](slice []*Prop[T], check func(*Prop[T]) bool) []*Prop[T] {
 	var i int
 	for _, p := range slice {
 		if check(p) {
@@ -66,16 +66,16 @@ func filterPropSlice[T any](slice []Prop[T], check func(Prop[T]) bool) []Prop[T]
 	return slice[:i]
 }
 
-// Rollback removes any props that are considered dirty
+// Rollback removes any props that are considered checkpoint
 func (b *Bag) rollback() {
-	b.asyncProps = filterPropSlice(b.asyncProps, func(p Prop[*LazyProp]) bool {
+	b.asyncProps = filterPropSlice(b.asyncProps, func(p *Prop[*LazyProp]) bool {
 		return !p.dirty
 	})
 
-	b.syncProps = filterPropSlice(b.syncProps, func(p Prop[*LazyProp]) bool {
+	b.syncProps = filterPropSlice(b.syncProps, func(p *Prop[*LazyProp]) bool {
 		return !p.dirty
 	})
-	b.valueProps = filterPropSlice(b.valueProps, func(p Prop[any]) bool {
+	b.valueProps = filterPropSlice(b.valueProps, func(p *Prop[any]) bool {
 		return !p.dirty
 	})
 
@@ -88,7 +88,7 @@ func (b *Bag) rollback() {
 	}
 
 	b.loadDeferred = false
-	b.dirty = false
+	b.checkpoint = false
 }
 
 // Only limits it to only certain props
@@ -167,28 +167,27 @@ func (b *Bag) Set(key string, value any) error {
 			return errors.New("could not cast prop as LazyProp")
 		}
 
+		prop := &Prop[*LazyProp]{
+			name:     key,
+			value:    p,
+			deferred: p.deferred,
+			dirty:    b.checkpoint,
+		}
+
 		if p.sync {
-			b.syncProps = append(b.syncProps, Prop[*LazyProp]{
-				name:     key,
-				value:    p,
-				dirty:    b.dirty,
-				deferred: p.deferred,
-			})
+			b.syncProps = append(b.syncProps, prop)
 		} else {
-			b.asyncProps = append(b.asyncProps, Prop[*LazyProp]{
-				name:     key,
-				value:    p,
-				dirty:    b.dirty,
-				deferred: p.deferred,
-			})
+			b.asyncProps = append(b.asyncProps, prop)
 		}
 	default:
-		b.valueProps = append(b.valueProps, Prop[any]{
+		prop := &Prop[any]{
 			name:     key,
 			value:    value,
-			dirty:    b.dirty,
 			deferred: false,
-		})
+			dirty:    b.checkpoint,
+		}
+
+		b.valueProps = append(b.valueProps, prop)
 	}
 	return nil
 }
@@ -208,7 +207,7 @@ func (b *Bag) Clear() {
 	b.syncProps = nil
 
 	b.loadDeferred = false
-	b.dirty = false
+	b.checkpoint = false
 	b.onlyProps = nil
 	b.exceptProps = nil
 }
@@ -216,7 +215,7 @@ func (b *Bag) Clear() {
 // filterProps throws out any props that are not meant to be loaded
 // while keeping track of them in a map for inertia to use
 func (b *Bag) filterProps() {
-	b.asyncProps = filterPropSlice(b.asyncProps, func(p Prop[*LazyProp]) bool {
+	b.asyncProps = filterPropSlice(b.asyncProps, func(p *Prop[*LazyProp]) bool {
 		// skip deferred if we don't want deferred
 		if p.deferred && !b.loadDeferred {
 			b.deferredProps[p.value.group] = append(b.deferredProps[p.value.group], p.name)
@@ -230,7 +229,7 @@ func (b *Bag) filterProps() {
 		return true
 	})
 
-	b.syncProps = filterPropSlice(b.syncProps, func(p Prop[*LazyProp]) bool {
+	b.syncProps = filterPropSlice(b.syncProps, func(p *Prop[*LazyProp]) bool {
 		// skip deferred if we don't want deferred
 		if p.deferred && !b.loadDeferred {
 			b.deferredProps[p.value.group] = append(b.deferredProps[p.value.group], p.name)

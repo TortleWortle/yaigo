@@ -12,12 +12,12 @@ type LazyProp struct {
 }
 type LazyPropFn = func() (any, error)
 
-func NewLazyProp(fn LazyPropFn, group string, deferred, sync bool) *LazyProp {
+func NewLazyProp(fn LazyPropFn, deferred, sync bool) *LazyProp {
 	return &LazyProp{
-		group:    group,
 		fn:       fn,
 		sync:     sync,
 		deferred: deferred,
+		group:    "default",
 	}
 }
 
