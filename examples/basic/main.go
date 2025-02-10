@@ -58,7 +58,7 @@ func main() {
 
 	// normal api
 	mux.HandleFunc("GET /jeff", func(w http.ResponseWriter, r *http.Request) {
-		req := yaigo.NewRequest()
+		req := yaigo.NewResponse()
 		req.SetProp("user", "Jeff")
 
 		err := inertiaServer.Render(req, w, r, "User", yaigo.Props{
