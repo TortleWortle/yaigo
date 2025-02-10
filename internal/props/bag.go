@@ -108,7 +108,7 @@ func (b *Bag) Except(propNames []string) *Bag {
 //
 // Deferred props will only be loaded when explicitly asked for.
 func (b *Bag) GetProps() (map[string]any, error) {
-	b.chuckDeferredProps()
+	b.filterProps()
 
 	// idea: syncmap for results
 	// pros: less loops, simpler execution of props
@@ -144,7 +144,6 @@ func (b *Bag) GetProps() (map[string]any, error) {
 	// wait for async props
 	b.wg.Wait()
 
-	// todo: replace with an already filtered map
 	for _, p := range b.asyncProps {
 		if p.value.err != nil {
 			return b.props, p.value.err
@@ -214,9 +213,9 @@ func (b *Bag) Clear() {
 	b.exceptProps = nil
 }
 
-// chuckDeferredProps throws out any props that are not meant to be loaded
+// filterProps throws out any props that are not meant to be loaded
 // while keeping track of them in a map for inertia to use
-func (b *Bag) chuckDeferredProps() {
+func (b *Bag) filterProps() {
 	b.asyncProps = filterPropSlice(b.asyncProps, func(p Prop[*LazyProp]) bool {
 		// skip deferred if we don't want deferred
 		if p.deferred && !b.loadDeferred {
