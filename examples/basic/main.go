@@ -4,6 +4,8 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"github.com/tortlewortle/go-inertia/pkg/inertia"
+	"github.com/tortlewortle/go-inertia/pkg/yaigo"
 	"io/fs"
 	"log"
 	"net/http"
@@ -12,7 +14,6 @@ import (
 	"time"
 
 	"github.com/tortlewortle/go-inertia/examples/basic/web"
-	"github.com/tortlewortle/go-inertia/pkg/inertia"
 )
 
 func main() {
@@ -26,18 +27,18 @@ func main() {
 	appEnv := os.Getenv("APP_ENV")
 
 	// I don't really like this
-	var inertiaServer *inertia.Server
+	var inertiaServer *yaigo.Server
 	if appEnv == "local" {
 		log.Println("creating LOCAL inertia server")
-		inertiaServer, err = inertia.NewServer(frontend,
-			inertia.WithViteDevServer("http://localhost:5173"),
+		inertiaServer, err = yaigo.NewServer(frontend,
+			yaigo.WithViteDevServer("http://localhost:5173", false),
 		)
 		if err != nil {
 			log.Fatal(err)
 		}
 	} else {
 		log.Println("creating PRODUCTION inertia server")
-		inertiaServer, err = inertia.NewServer(frontend)
+		inertiaServer, err = yaigo.NewServer(frontend)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -46,6 +47,7 @@ func main() {
 	log.Println("creating servemux")
 	mux := http.NewServeMux()
 
+	// normal api
 	mux.HandleFunc("GET /news", func(w http.ResponseWriter, r *http.Request) {
 		err := inertia.Render(w, r, "News", nil)
 
@@ -54,9 +56,34 @@ func main() {
 		}
 	})
 
+	// normal api
 	mux.HandleFunc("GET /jeff", func(w http.ResponseWriter, r *http.Request) {
-		inertia.SetProp(r, "user", "Jeffrey")
-		err := inertia.Render(w, r, "User", nil)
+		req := yaigo.NewRequest()
+		req.SetProp("user", "Jeff")
+
+		err := inertiaServer.Render(req, w, r, "User", yaigo.Props{
+			"age": 32,
+			"slow": yaigo.NewDeferredProp(func() (any, error) {
+				time.Sleep(time.Second)
+				return "very slow", nil
+			}, "default"),
+		})
+
+		if err != nil {
+			log.Printf("Could not render page: %v", err)
+		}
+	})
+
+	// helper api
+	mux.HandleFunc("GET /geoffrey", func(w http.ResponseWriter, r *http.Request) {
+		inertia.SetProp(r, "user", "Geoffrey")
+		err := inertia.Render(w, r, "User", inertia.Props{
+			"age": 32,
+			"slow": inertia.Defer(func() (any, error) {
+				time.Sleep(time.Second)
+				return "very slow", nil
+			}),
+		})
 
 		if err != nil {
 			log.Printf("Could not render page: %v", err)
@@ -213,8 +240,10 @@ func main() {
 		}
 	})
 
+	inertiaMiddleware := inertia.NewMiddleware(inertiaServer)
+
 	log.Println("starting listener")
-	http.ListenAndServe(":3000", logRequests(inertiaServer.Middleware(encryptsHistory(mux))))
+	http.ListenAndServe(":3000", logRequests(inertiaMiddleware(encryptsHistory(mux))))
 }
 
 func encryptsHistory(next http.Handler) http.Handler {

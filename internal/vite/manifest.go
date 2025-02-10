@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 )
 
 type viteManifestData = map[string]ManifestItem
@@ -20,6 +21,21 @@ type ManifestItem struct {
 	Src     string   `json:"src"`
 	IsEntry bool     `json:"isEntry"`
 	Css     []string `json:"css"`
+}
+
+func FromDistFS(frontend fs.FS) (manifest *Manifest, err error) {
+	f, err := frontend.Open(".vite/manifest.json")
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		cErr := f.Close()
+		if cErr != nil && err == nil {
+			err = cErr
+		}
+	}()
+
+	return FromJSON(f)
 }
 
 func FromJSON(r io.Reader) (*Manifest, error) {

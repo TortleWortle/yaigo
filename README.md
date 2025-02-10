@@ -1,5 +1,8 @@
-# go-inertia
-Go adapter for InertiaJS
+# Yaigo
+Yet another InertiaJS go adapter
+
+## WARNING
+Under heavy development, api can and will change at any point!
 
 ## Client usage
 You can view an example here: https://github.com/TortleWortle/go-inertia-example-vue
