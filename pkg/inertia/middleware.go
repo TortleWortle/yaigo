@@ -24,7 +24,7 @@ func NewMiddleware(server *yaigo.Server) func(next http.Handler) http.Handler {
 }
 
 func wrapRequest(r *http.Request, server *yaigo.Server) *http.Request {
-	inertiaReq := yaigo.NewRequest()
+	inertiaReq := yaigo.NewResponse()
 
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, serverKey, server)
@@ -46,13 +46,13 @@ func getServer(r *http.Request) (*yaigo.Server, error) {
 	return val, nil
 }
 
-func getRequest(r *http.Request) (*yaigo.Request, error) {
+func getResponse(r *http.Request) (*yaigo.Response, error) {
 	rawVal := r.Context().Value(requestKey)
 	if rawVal == nil {
 		return nil, errors.New("request not set in context")
 	}
 
-	val, ok := rawVal.(*yaigo.Request)
+	val, ok := rawVal.(*yaigo.Response)
 	if !ok {
 		return nil, errors.New("request provided but could not be cast")
 	}

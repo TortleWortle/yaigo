@@ -24,7 +24,7 @@ const (
 
 type Props map[string]any
 
-func (s *Server) Render(inertiaReq *Request, w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
+func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
 	isInertia := r.Header.Get(headerInertia) == "true"
 	partialComponent := r.Header.Get(headerPartialComponent)
 	isPartial := partialComponent == page
@@ -36,8 +36,8 @@ func (s *Server) Render(inertiaReq *Request, w http.ResponseWriter, r *http.Requ
 		return nil
 	}
 	var err error
-	data := inertiaReq.pageData
-	bag := inertiaReq.propBag
+	data := res.pageData
+	bag := res.propBag
 
 	// We want to reset the page completely when rendering twice in the same handler, for an example: rendering error pages in the error render handler.
 	data.ResetIfDirty()
@@ -57,7 +57,7 @@ func (s *Server) Render(inertiaReq *Request, w http.ResponseWriter, r *http.Requ
 
 	// resolve deferred props
 	if isPartial {
-		return inertiaReq.handlePartial(s, w, r, data)
+		return res.handlePartial(s, w, r, data)
 	}
 
 	// from this point there is no special logic in prop eval
@@ -69,24 +69,24 @@ func (s *Server) Render(inertiaReq *Request, w http.ResponseWriter, r *http.Requ
 	data.DeferredProps = bag.GetDeferredProps()
 
 	if isInertia {
-		return inertiaReq.renderJson(w, data)
+		return res.renderJson(w, data)
 	}
 
 	if s.ssrURL != "" {
-		err = inertiaReq.renderSSR(s, w, data)
+		err = res.renderSSR(s, w, data)
 		if err != nil {
 			if errors.Is(err, errCommunicatingToSSRServer) {
 				// render client side if ssr is unreachable
-				return inertiaReq.renderHtml(s, w, data)
+				return res.renderHtml(s, w, data)
 			}
 			return err
 		}
 		return nil
 	}
-	return inertiaReq.renderHtml(s, w, data)
+	return res.renderHtml(s, w, data)
 }
 
-func (req *Request) handlePartial(s *Server, w http.ResponseWriter, r *http.Request, data *page.InertiaPage) error {
+func (req *Response) handlePartial(s *Server, w http.ResponseWriter, r *http.Request, data *page.InertiaPage) error {
 	bag := req.propBag
 	onlyPropsStr := r.Header.Get(headerPartialOnly)
 	if onlyPropsStr != "" {
@@ -109,7 +109,7 @@ func (req *Request) handlePartial(s *Server, w http.ResponseWriter, r *http.Requ
 	return req.renderJson(w, data)
 }
 
-func (req *Request) renderJson(w http.ResponseWriter, data *page.InertiaPage) error {
+func (req *Response) renderJson(w http.ResponseWriter, data *page.InertiaPage) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Vary", headerInertia)
 	w.Header().Set(headerInertia, "true")
@@ -128,7 +128,7 @@ func (s *Server) inertiaBaseHead() template.HTML {
 	return ""
 }
 
-func (req *Request) renderHtml(s *Server, w http.ResponseWriter, data *page.InertiaPage) error {
+func (req *Response) renderHtml(s *Server, w http.ResponseWriter, data *page.InertiaPage) error {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(req.status)
 	propStr, err := json.Marshal(data)
@@ -149,7 +149,7 @@ type ssrResponse struct {
 	Body string   `json:"body"`
 }
 
-func (req *Request) renderSSR(s *Server, w http.ResponseWriter, data *page.InertiaPage) error {
+func (req *Response) renderSSR(s *Server, w http.ResponseWriter, data *page.InertiaPage) error {
 	renderPath, err := url.JoinPath(s.ssrURL, "/render")
 	if err != nil {
 		return err

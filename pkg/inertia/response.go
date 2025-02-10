@@ -6,7 +6,7 @@ import (
 
 // EncryptHistory enables or disables page history encryption inside inertiajs
 func EncryptHistory(r *http.Request, encrypt bool) error {
-	req, err := getRequest(r)
+	req, err := getResponse(r)
 	if err != nil {
 		return err
 	}
@@ -17,7 +17,7 @@ func EncryptHistory(r *http.Request, encrypt bool) error {
 // ClearHistory tells inertiajs to roll the cache encryption key.
 // This can be used to protect any sensitive information from being accessed after logout by using the back button.
 func ClearHistory(r *http.Request) error {
-	req, err := getRequest(r)
+	req, err := getResponse(r)
 	if err != nil {
 		return err
 	}
@@ -27,7 +27,7 @@ func ClearHistory(r *http.Request) error {
 
 // SetStatus of the http response
 func SetStatus(r *http.Request, status int) error {
-	req, err := getRequest(r)
+	req, err := getResponse(r)
 	if err != nil {
 		return err
 	}

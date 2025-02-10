@@ -9,7 +9,7 @@ func Render(w http.ResponseWriter, r *http.Request, page string, pageProps Props
 	if err != nil {
 		return err
 	}
-	req, err := getRequest(r)
+	req, err := getResponse(r)
 	if err != nil {
 		return err
 	}

@@ -9,7 +9,7 @@ import (
 type Props = yaigo.Props
 
 func SetProp(r *http.Request, key string, value any) error {
-	req, err := getRequest(r)
+	req, err := getResponse(r)
 	if err != nil {
 		return err
 	}
