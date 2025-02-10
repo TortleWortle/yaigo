@@ -3,7 +3,7 @@ package inertia
 import (
 	"context"
 	"errors"
-	"github.com/tortlewortle/go-inertia/pkg/yaigo"
+	"github.com/tortlewortle/yaigo/pkg/yaigo"
 	"net/http"
 )
 

@@ -4,8 +4,8 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"github.com/tortlewortle/go-inertia/pkg/inertia"
-	"github.com/tortlewortle/go-inertia/pkg/yaigo"
+	"github.com/tortlewortle/yaigo/pkg/inertia"
+	"github.com/tortlewortle/yaigo/pkg/yaigo"
 	"io/fs"
 	"log"
 	"net/http"
@@ -13,7 +13,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/tortlewortle/go-inertia/examples/basic/web"
+	"github.com/tortlewortle/yaigo/examples/basic/web"
 )
 
 func main() {

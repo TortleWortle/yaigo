@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/tortlewortle/go-inertia/internal/page"
+	"github.com/tortlewortle/yaigo/internal/page"
 	"html/template"
 	"net/http"
 	"net/url"

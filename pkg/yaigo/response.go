@@ -2,8 +2,8 @@ package yaigo
 
 import (
 	"errors"
-	"github.com/tortlewortle/go-inertia/internal/page"
-	"github.com/tortlewortle/go-inertia/internal/props"
+	"github.com/tortlewortle/yaigo/internal/page"
+	"github.com/tortlewortle/yaigo/internal/props"
 	"net/http"
 )
 
