@@ -1,4 +1,4 @@
-name: golangci-lint
+name: lint-and-test
 on:
   push:
     branches:
@@ -8,8 +8,7 @@ on:
 
 permissions:
   contents: read
-  # Optional: allow read access to pull request. Use with `only-new-issues` option.
-  # pull-requests: read
+  pull-requests: read
 
 jobs:
   golangci:
@@ -24,3 +23,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6.3.2
         with:
           version: v1.64.2
+      - name: Build
+        run: go build -v ./...
+      - name: Test with the Go CLI
+        run: go test
