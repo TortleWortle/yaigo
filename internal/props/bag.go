@@ -1,15 +1,9 @@
 package props
 
 import (
-	"errors"
 	"slices"
 	"sync"
 )
-
-type asyncPropResult struct {
-	value any
-	err   error
-}
 
 type Bag struct {
 	deferredProps map[string][]string
@@ -160,13 +154,8 @@ func (b *Bag) GetDeferredProps() map[string][]string {
 }
 
 func (b *Bag) Set(key string, value any) error {
-	switch value.(type) {
+	switch p := value.(type) {
 	case *LazyProp:
-		p, ok := value.(*LazyProp)
-		if !ok {
-			return errors.New("could not cast prop as LazyProp")
-		}
-
 		prop := &Prop[*LazyProp]{
 			name:     key,
 			value:    p,

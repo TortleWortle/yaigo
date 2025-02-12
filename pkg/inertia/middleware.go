@@ -3,7 +3,7 @@ package inertia
 import (
 	"context"
 	"errors"
-	"github.com/tortlewortle/go-inertia/pkg/yaigo"
+	"github.com/tortlewortle/yaigo/pkg/yaigo"
 	"net/http"
 )
 
@@ -14,17 +14,31 @@ const (
 	requestKey
 )
 
-func NewMiddleware(server *yaigo.Server) func(next http.Handler) http.Handler {
+type MiddlewareOpts struct {
+	EncryptHistory bool
+}
+
+func WithHistoryEncryption(opt *MiddlewareOpts) {
+	opt.EncryptHistory = true
+}
+
+func NewMiddleware(server *yaigo.Server, opts ...func(*MiddlewareOpts)) func(next http.Handler) http.Handler {
+	o := &MiddlewareOpts{}
+	for _, fn := range opts {
+		fn(o)
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r = wrapRequest(r, server)
+			r = wrapRequest(r, server, o)
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-func wrapRequest(r *http.Request, server *yaigo.Server) *http.Request {
+func wrapRequest(r *http.Request, server *yaigo.Server, opts *MiddlewareOpts) *http.Request {
 	inertiaReq := yaigo.NewResponse()
+	inertiaReq.EncryptHistory(opts.EncryptHistory)
 
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, serverKey, server)

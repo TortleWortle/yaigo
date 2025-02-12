@@ -2,7 +2,7 @@ package yaigo
 
 import (
 	"fmt"
-	"github.com/tortlewortle/go-inertia/internal/vite"
+	"github.com/tortlewortle/yaigo/internal/vite"
 	"html/template"
 	"io/fs"
 	"net/url"

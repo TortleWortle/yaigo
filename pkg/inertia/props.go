@@ -1,8 +1,8 @@
 package inertia
 
 import (
-	"github.com/tortlewortle/go-inertia/internal/props"
-	"github.com/tortlewortle/go-inertia/pkg/yaigo"
+	"github.com/tortlewortle/yaigo/internal/props"
+	"github.com/tortlewortle/yaigo/pkg/yaigo"
 	"net/http"
 )
 

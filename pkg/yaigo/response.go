@@ -2,9 +2,10 @@ package yaigo
 
 import (
 	"errors"
-	"github.com/tortlewortle/go-inertia/internal/page"
-	"github.com/tortlewortle/go-inertia/internal/props"
 	"net/http"
+
+	"github.com/tortlewortle/yaigo/internal/page"
+	"github.com/tortlewortle/yaigo/internal/props"
 )
 
 func NewResponse() *Response {
@@ -38,15 +39,11 @@ func (req *Response) SetStatus(status int) {
 }
 
 func (req *Response) SetProp(key string, value any) error {
-	switch value.(type) {
+	switch p := value.(type) {
 	case *props.LazyProp:
-		p, ok := value.(*props.LazyProp)
-		if ok {
-			if p.IsDeferred() {
-				return errors.New("deferred props can only be used on the page render func")
-			}
+		if p.IsDeferred() {
+			return errors.New("deferred props can only be used on the page render func")
 		}
-		return errors.New("could not cast LazyProp")
 	}
 	bag := req.propBag
 

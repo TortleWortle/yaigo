@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/tortlewortle/go-inertia/internal/page"
 	"html/template"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/tortlewortle/yaigo/internal/page"
 )
 
 const (
@@ -155,6 +156,10 @@ func (req *Response) renderSSR(s *Server, w http.ResponseWriter, data *page.Iner
 		return err
 	}
 	pData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
 	ssrReq, err := http.NewRequest("GET", renderPath, bytes.NewReader(pData))
 	if err != nil {
 		return errors.Join(errCommunicatingToSSRServer, err)
