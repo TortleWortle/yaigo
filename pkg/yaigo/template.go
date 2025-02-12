@@ -22,7 +22,7 @@ func generateRootTemplate(frontend fs.FS, manifest *vite.Manifest, opts *ServerO
 		return nil, err
 	}
 
-	t = t.Funcs(template.FuncMap{
+	t.Funcs(template.FuncMap{
 		"vite": func(assetUrl string) (string, error) {
 			item, err := manifest.GetItem(assetUrl)
 			if err != nil {
@@ -50,6 +50,10 @@ func generateRootTemplate(frontend fs.FS, manifest *vite.Manifest, opts *ServerO
 			return template.HTML(tb.String()), nil
 		},
 	})
+
+	for _, fn := range opts.TemplateOptions {
+		fn(t)
+	}
 
 	t, err = t.ParseFS(frontend, opts.ViteTemplateName)
 	if err != nil {

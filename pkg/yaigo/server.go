@@ -16,7 +16,6 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 	// default opts
 	opts := &ServerOpts{
 		ViteUrl:          "",
-		ViteScriptName:   "src/main.js",
 		ViteTemplateName: "index.html",
 	}
 
@@ -57,7 +56,8 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 type Server struct {
 	manifestVersion string
 
-	rootTemplate  *template.Template
+	rootTemplate *template.Template
+
 	ssrHTTPClient *http.Client
 	ssrURL        string
 

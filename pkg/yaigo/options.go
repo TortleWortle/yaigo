@@ -1,29 +1,33 @@
 package yaigo
 
-import "time"
+import (
+	"html/template"
+	"time"
+)
 
 type ServerOpts struct {
 	ViteUrl          string
-	ViteScriptName   string
 	ViteTemplateName string
 	SSRServerUrl     string
 	ReactRefresh     bool
 	SSRTimeout       time.Duration
+	TemplateOptions  []func(t *template.Template)
 }
 
 type OptFunc = func(o *ServerOpts)
 
-// WithRootTemplateName sets the root template filename to look for inside the frontend filesystem
+// WithRootTemplateName sets the root template filename to look for inside the frontend filesystem,
+// defaults to index.html
 func WithRootTemplateName(template string) OptFunc {
 	return func(o *ServerOpts) {
 		o.ViteTemplateName = template
 	}
 }
 
-// WithViteScriptName sets the script name to look for inside the vite manifest
-func WithViteScriptName(script string) OptFunc {
+// WithTemplateOptions accepts functions to modify the template before parsing
+func WithTemplateOptions(opts ...func(t *template.Template)) OptFunc {
 	return func(o *ServerOpts) {
-		o.ViteScriptName = script
+		o.TemplateOptions = opts
 	}
 }
 
