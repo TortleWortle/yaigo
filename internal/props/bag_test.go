@@ -205,6 +205,9 @@ func TestBag_Checkpoint(t *testing.T) {
 
 	b.Checkpoint()
 	props, err := b.GetProps()
+	if err != nil {
+		t.Errorf("getting props: %v", err)
+	}
 
 	username, ok := props["username"]
 	if !ok {
