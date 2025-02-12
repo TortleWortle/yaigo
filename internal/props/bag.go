@@ -1,6 +1,8 @@
 package props
 
 import (
+	"context"
+	"golang.org/x/sync/errgroup"
 	"slices"
 	"sync"
 )
@@ -16,7 +18,6 @@ type Bag struct {
 	onlyProps   []string
 	exceptProps []string
 
-	wg           *sync.WaitGroup
 	checkpoint   bool
 	loadDeferred bool
 }
@@ -34,8 +35,6 @@ func NewBag() *Bag {
 		// re-usable ish
 		deferredProps: make(map[string][]string),
 		props:         make(map[string]any),
-
-		wg: &sync.WaitGroup{},
 	}
 }
 
@@ -101,16 +100,11 @@ func (b *Bag) Except(propNames []string) *Bag {
 // GetProps calculates, evaluates, and returns the props for the current render cycle
 //
 // Deferred props will only be loaded when explicitly asked for.
-func (b *Bag) GetProps() (map[string]any, error) {
+func (b *Bag) GetProps(ctx context.Context) (map[string]any, error) {
 	b.filterProps()
+	var lock sync.Mutex
 
-	// idea: syncmap for results
-	// pros: less loops, simpler execution of props
-	// cons: no error handling if a prop handler fails unless we keep track of errors separately.
-	//
-	// use sync errgroup
-	// pros: track errors
-	// cons: need to accept context inside of the callback functions now
+	g, ctx := errgroup.WithContext(ctx)
 
 	// copy value props over
 	for _, prop := range b.valueProps {
@@ -120,29 +114,32 @@ func (b *Bag) GetProps() (map[string]any, error) {
 	}
 
 	for _, p := range b.asyncProps {
-		b.wg.Add(1)
-		go func() {
-			p.value.Execute()
-			b.wg.Done()
-		}()
+		g.Go(func() error {
+			val, err := p.value.fn(ctx)
+			if err != nil {
+				return err
+			}
+			lock.Lock()
+			b.props[p.name] = val
+			lock.Unlock()
+			return nil
+		})
 	}
 
+	lock.Lock()
 	for _, p := range b.syncProps {
-		p.value.Execute()
-		if p.value.err != nil {
-			return b.props, p.value.err
+		val, err := p.value.fn(ctx)
+		if err != nil {
+			return nil, err
 		}
-		b.props[p.name] = p.value.result
+		b.props[p.name] = val
 	}
+	lock.Unlock()
 
 	// wait for async props
-	b.wg.Wait()
-
-	for _, p := range b.asyncProps {
-		if p.value.err != nil {
-			return b.props, p.value.err
-		}
-		b.props[p.name] = p.value.result
+	err := g.Wait()
+	if err != nil {
+		return nil, err
 	}
 
 	return b.props, nil

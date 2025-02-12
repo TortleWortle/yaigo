@@ -1,16 +1,14 @@
 package props
 
+import "context"
+
 type LazyProp struct {
 	group    string
 	fn       LazyPropFn
 	sync     bool
 	deferred bool
-
-	// after executing
-	result any
-	err    error
 }
-type LazyPropFn = func() (any, error)
+type LazyPropFn = func(ctx context.Context) (any, error)
 
 func NewLazyProp(fn LazyPropFn, deferred, sync bool) *LazyProp {
 	return &LazyProp{
@@ -19,16 +17,6 @@ func NewLazyProp(fn LazyPropFn, deferred, sync bool) *LazyProp {
 		deferred: deferred,
 		group:    "default",
 	}
-}
-
-// Execute the callback and populate the result and err fields.
-//
-// Technically should get a context.Context passed in, but it is expected that the functions provided already have those from the *http.Request
-func (p *LazyProp) Execute() {
-	val, err := p.fn()
-
-	p.result = val
-	p.err = err
 }
 
 // Group sets the group name InertiaJS fetches each group in a separate request

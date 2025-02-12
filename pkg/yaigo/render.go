@@ -62,7 +62,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	}
 
 	// from this point there is no special logic in prop eval
-	data.Props, err = bag.GetProps()
+	data.Props, err = bag.GetProps(r.Context())
 	data.DeferredProps = bag.GetDeferredProps()
 	if err != nil {
 		return fmt.Errorf("loading props: %w", err)
@@ -102,7 +102,7 @@ func (req *Response) handlePartial(s *Server, w http.ResponseWriter, r *http.Req
 		bag.Except(exceptProps)
 	}
 	var err error
-	data.Props, err = bag.GetProps()
+	data.Props, err = bag.GetProps(r.Context())
 	if err != nil {
 		return err
 	}
