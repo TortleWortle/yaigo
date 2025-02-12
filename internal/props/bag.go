@@ -145,7 +145,7 @@ func (b *Bag) GetProps(ctx context.Context) (map[string]any, error) {
 	return b.props, nil
 }
 
-// GetDeferredProps returns the props that were deferred after a GetProps call
+// GetDeferredProps returns the props deferred after a GetProps call
 func (b *Bag) GetDeferredProps() map[string][]string {
 	return b.deferredProps
 }
