@@ -40,9 +40,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	data := res.pageData
 	bag := res.propBag
 
-	// We want to reset the page completely when rendering twice in the same handler, for an example: rendering error pages in the error render handler.
-	data.ResetIfDirty()
-	// Same here, mark any future props as dirty and remove any existing dirty props.
+	// Remove any dirty props from a previous render attempt in the same request
 	bag.Checkpoint()
 
 	for k, v := range pageProps {
@@ -56,12 +54,10 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	data.Url = r.URL.Path
 	data.Version = s.manifestVersion
 
-	// resolve deferred props
 	if isPartial {
 		return res.handlePartial(s, w, r, data)
 	}
 
-	// from this point there is no special logic in prop eval
 	data.Props, err = bag.GetProps(r.Context())
 	data.DeferredProps = bag.GetDeferredProps()
 	if err != nil {
@@ -76,7 +72,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	if s.ssrURL != "" {
 		err = res.renderSSR(s, w, data)
 		if err != nil {
-			if errors.Is(err, errCommunicatingToSSRServer) {
+			if errors.Is(err, errCommunicatingWithSSRServer) {
 				// render client side if ssr is unreachable
 				return res.renderHtml(s, w, data)
 			}
@@ -95,18 +91,18 @@ func (req *Response) handlePartial(s *Server, w http.ResponseWriter, r *http.Req
 		bag.Only(onlyProps)
 	}
 
-	// can't realistically be avoided
 	exceptPropsStr := r.Header.Get(headerPartialExcept)
 	if exceptPropsStr != "" {
 		exceptProps := strings.Split(exceptPropsStr, ",")
 		bag.Except(exceptProps)
 	}
+
 	var err error
 	data.Props, err = bag.GetProps(r.Context())
 	if err != nil {
 		return err
 	}
-	// eval props
+
 	return req.renderJson(w, data)
 }
 
@@ -143,7 +139,7 @@ func (req *Response) renderHtml(s *Server, w http.ResponseWriter, data *page.Ine
 	})
 }
 
-var errCommunicatingToSSRServer = errors.New("could not communicate with ssr Server")
+var errCommunicatingWithSSRServer = errors.New("could not communicate with ssr Server")
 
 type ssrResponse struct {
 	Head []string `json:"head"`
@@ -162,19 +158,19 @@ func (req *Response) renderSSR(s *Server, w http.ResponseWriter, data *page.Iner
 
 	ssrReq, err := http.NewRequest("GET", renderPath, bytes.NewReader(pData))
 	if err != nil {
-		return errors.Join(errCommunicatingToSSRServer, err)
+		return errors.Join(errCommunicatingWithSSRServer, err)
 	}
 
 	resp, err := s.ssrHTTPClient.Do(ssrReq)
 	if err != nil {
-		return errors.Join(errCommunicatingToSSRServer, err)
+		return errors.Join(errCommunicatingWithSSRServer, err)
 	}
 	defer resp.Body.Close()
 
 	var ssrRes ssrResponse
 	err = json.NewDecoder(resp.Body).Decode(&ssrRes)
 	if err != nil {
-		return errors.Join(errCommunicatingToSSRServer, err)
+		return errors.Join(errCommunicatingWithSSRServer, err)
 	}
 
 	w.Header().Set("Content-Type", "text/html")

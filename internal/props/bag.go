@@ -18,7 +18,7 @@ type Bag struct {
 	onlyProps   []string
 	exceptProps []string
 
-	checkpoint   bool
+	dirty        bool
 	loadDeferred bool
 }
 
@@ -38,14 +38,14 @@ func NewBag() *Bag {
 	}
 }
 
-// Checkpoint sets the bag as checkpoint and will mark any following incoming props as checkpoint as well
+// Checkpoint sets the bag as dirty and will mark any following incoming props as dirty as well
 //
-// Will remove any checkpoint
+// Will remove any dirty
 func (b *Bag) Checkpoint() {
-	if b.checkpoint {
+	if b.dirty {
 		b.rollback()
 	}
-	b.checkpoint = true
+	b.dirty = true
 }
 
 func filterPropSlice[T any](slice []*Prop[T], check func(*Prop[T]) bool) []*Prop[T] {
@@ -59,7 +59,7 @@ func filterPropSlice[T any](slice []*Prop[T], check func(*Prop[T]) bool) []*Prop
 	return slice[:i]
 }
 
-// Rollback removes any props that are considered checkpoint
+// Rollback removes any props that are considered dirty, will also clear onlyProps and exceptProps
 func (b *Bag) rollback() {
 	b.asyncProps = filterPropSlice(b.asyncProps, func(p *Prop[*LazyProp]) bool {
 		return !p.dirty
@@ -80,8 +80,11 @@ func (b *Bag) rollback() {
 		delete(b.deferredProps, k)
 	}
 
+	b.onlyProps = nil
+	b.exceptProps = nil
+
 	b.loadDeferred = false
-	b.checkpoint = false
+	b.dirty = false
 }
 
 // Only limits it to only certain props
@@ -157,7 +160,7 @@ func (b *Bag) Set(key string, value any) error {
 			name:     key,
 			value:    p,
 			deferred: p.deferred,
-			dirty:    b.checkpoint,
+			dirty:    b.dirty,
 		}
 
 		if p.sync {
@@ -170,7 +173,7 @@ func (b *Bag) Set(key string, value any) error {
 			name:     key,
 			value:    value,
 			deferred: false,
-			dirty:    b.checkpoint,
+			dirty:    b.dirty,
 		}
 
 		b.valueProps = append(b.valueProps, prop)
@@ -193,7 +196,7 @@ func (b *Bag) Clear() {
 	b.syncProps = nil
 
 	b.loadDeferred = false
-	b.checkpoint = false
+	b.dirty = false
 	b.onlyProps = nil
 	b.exceptProps = nil
 }
