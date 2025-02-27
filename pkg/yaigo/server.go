@@ -2,21 +2,24 @@ package yaigo
 
 import (
 	"errors"
-	"github.com/tortlewortle/yaigo/internal/vite"
 	"html/template"
 	"io/fs"
 	"net/http"
+
+	"github.com/tortlewortle/yaigo/internal/vite"
 )
 
-func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
+func NewServer(tfn func(*template.Template) (*template.Template, error), frontend fs.FS, optFns ...OptFunc) (*Server, error) {
+	if tfn == nil {
+		return nil, errors.New("template can not be nil")
+	}
 	if frontend == nil {
 		return nil, errors.New("frontend filesystem can not be nil")
 	}
 
 	// default opts
 	opts := &ServerOpts{
-		ViteUrl:          "",
-		ViteTemplateName: "index.html",
+		ViteUrl: "",
 	}
 
 	for _, fn := range optFns {
@@ -33,7 +36,7 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 		return nil, err
 	}
 
-	rootTmpl, err := generateRootTemplate(frontend, manifest, opts)
+	rootTmpl, err := generateRootTemplate(tfn, manifest, opts)
 	if err != nil {
 		return nil, err
 	}
