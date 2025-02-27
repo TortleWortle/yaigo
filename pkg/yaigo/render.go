@@ -2,6 +2,7 @@ package yaigo
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/tortlewortle/yaigo/internal/inertia"
 	"github.com/tortlewortle/yaigo/internal/page"
 )
 
@@ -26,12 +28,12 @@ const (
 type Props map[string]any
 
 func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
-	isInertia := r.Header.Get(headerInertia) == "true"
+	ir := inertia.FromHTTPRequest(r)
 	partialComponent := r.Header.Get(headerPartialComponent)
 	isPartial := partialComponent == page
 
 	// detect frontend version changes
-	if isInertia && r.Method == http.MethodGet && r.Header.Get(headerVersion) != s.manifestVersion {
+	if ir.IsInertia() && r.Method == http.MethodGet && r.Header.Get(headerVersion) != s.manifestVersion {
 		w.Header().Set(headerLocation, r.URL.String())
 		w.WriteHeader(http.StatusConflict)
 		return nil
@@ -55,17 +57,20 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	data.Version = s.manifestVersion
 
 	if isPartial {
-		return res.handlePartial(s, w, r, data)
+		data.Props, err = res.filterPartialProps(r.Context(), ir)
+		if err != nil {
+			return fmt.Errorf("loading filtered props: %w", err)
+		}
+		data.DeferredProps = nil
+	} else {
+		data.Props, err = bag.GetProps(r.Context())
+		if err != nil {
+			return fmt.Errorf("loading props: %w", err)
+		}
+		data.DeferredProps = bag.GetDeferredProps()
 	}
 
-	data.Props, err = bag.GetProps(r.Context())
-	data.DeferredProps = bag.GetDeferredProps()
-	if err != nil {
-		return fmt.Errorf("loading props: %w", err)
-	}
-	data.DeferredProps = bag.GetDeferredProps()
-
-	if isInertia {
+	if ir.IsInertia() {
 		return res.renderJson(w, data)
 	}
 
@@ -83,27 +88,19 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	return res.renderHtml(s, w, data)
 }
 
-func (req *Response) handlePartial(s *Server, w http.ResponseWriter, r *http.Request, data *page.InertiaPage) error {
+func (req *Response) filterPartialProps(ctx context.Context, r inertia.InertiaRequest) (map[string]any, error) {
 	bag := req.propBag
-	onlyPropsStr := r.Header.Get(headerPartialOnly)
-	if onlyPropsStr != "" {
-		onlyProps := strings.Split(onlyPropsStr, ",")
+	onlyProps := r.OnlyProps()
+	if len(onlyProps) > 0 {
 		bag.Only(onlyProps)
 	}
 
-	exceptPropsStr := r.Header.Get(headerPartialExcept)
-	if exceptPropsStr != "" {
-		exceptProps := strings.Split(exceptPropsStr, ",")
+	exceptProps := r.ExceptProps()
+	if len(exceptProps) > 0 {
 		bag.Except(exceptProps)
 	}
 
-	var err error
-	data.Props, err = bag.GetProps(r.Context())
-	if err != nil {
-		return err
-	}
-
-	return req.renderJson(w, data)
+	return bag.GetProps(ctx)
 }
 
 func (req *Response) renderJson(w http.ResponseWriter, data *page.InertiaPage) error {
