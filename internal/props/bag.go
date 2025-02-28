@@ -93,15 +93,18 @@ func (b *Bag) rollback() {
 
 // Only limits it to only certain props
 func (b *Bag) Only(propNames []string) *Bag {
-	b.loadDeferred = true // we want to load deferred props when explicitly asking for them
 	b.onlyProps = propNames
 	return b
 }
 
 // Except filters out all other props
 func (b *Bag) Except(propNames []string) *Bag {
-	b.loadDeferred = true // we want to load deferred props when being explicit about what components to load
 	b.exceptProps = propNames
+	return b
+}
+
+func (b *Bag) LoadDeferred() *Bag {
+	b.loadDeferred = true
 	return b
 }
 

@@ -86,6 +86,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 
 func (req *Response) filterPartialProps(ctx context.Context, r *requestBag) (map[string]any, error) {
 	bag := req.propBag
+	bag.LoadDeferred()
 	onlyProps := r.OnlyProps()
 	if len(onlyProps) > 0 {
 		bag.Only(onlyProps)

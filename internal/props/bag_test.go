@@ -8,6 +8,7 @@ import (
 
 func TestBag_Except(t *testing.T) {
 	b := NewBag()
+	b.LoadDeferred()
 	if err := b.Set("username", "john"); err != nil {
 		t.Error(err)
 	}
@@ -46,6 +47,7 @@ func TestBag_Except(t *testing.T) {
 
 func TestBag_Only(t *testing.T) {
 	b := NewBag()
+	b.LoadDeferred()
 	if err := b.Set("username", "john"); err != nil {
 		t.Error(err)
 	}
