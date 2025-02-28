@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/tortlewortle/yaigo/internal/inertia"
 	"github.com/tortlewortle/yaigo/internal/page"
 )
 
@@ -28,16 +27,13 @@ const (
 type Props map[string]any
 
 func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
-	ir := inertia.FromHTTPRequest(r)
-	partialComponent := r.Header.Get(headerPartialComponent)
-	isPartial := partialComponent == page
+	hb := newHeaderBag(r)
+	isPartial := hb.IsPartial(page)
 
-	// detect frontend version changes
-	if ir.IsInertia() && r.Method == http.MethodGet && r.Header.Get(headerVersion) != s.manifestVersion {
-		w.Header().Set(headerLocation, r.URL.String())
-		w.WriteHeader(http.StatusConflict)
+	if hb.RedirectIfVersionConflict(w, s.manifestVersion, r.URL.String()) {
 		return nil
 	}
+
 	var err error
 	data := res.pageData
 	bag := res.propBag
@@ -57,7 +53,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	data.Version = s.manifestVersion
 
 	if isPartial {
-		data.Props, err = res.filterPartialProps(r.Context(), ir)
+		data.Props, err = res.filterPartialProps(r.Context(), hb)
 		if err != nil {
 			return fmt.Errorf("loading filtered props: %w", err)
 		}
@@ -70,7 +66,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 		data.DeferredProps = bag.GetDeferredProps()
 	}
 
-	if ir.IsInertia() {
+	if hb.IsInertia() {
 		return res.renderJson(w, data)
 	}
 
@@ -88,7 +84,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	return res.renderHtml(s, w, data)
 }
 
-func (req *Response) filterPartialProps(ctx context.Context, r inertia.InertiaRequest) (map[string]any, error) {
+func (req *Response) filterPartialProps(ctx context.Context, r *requestBag) (map[string]any, error) {
 	bag := req.propBag
 	onlyProps := r.OnlyProps()
 	if len(onlyProps) > 0 {
