@@ -100,6 +100,7 @@ func (b *Bag) Only(propNames []string) *Bag {
 
 // Except filters out all other props
 func (b *Bag) Except(propNames []string) *Bag {
+	b.loadDeferred = true // we want to load deferred props when being explicit about what components to load
 	b.exceptProps = propNames
 	return b
 }

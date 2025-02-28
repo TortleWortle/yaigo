@@ -62,9 +62,15 @@ func (r *requestBag) IsInertia() bool {
 }
 
 func (r *requestBag) OnlyProps() []string {
+	if r.partialOnlyHeader == "" {
+		return []string{}
+	}
 	return strings.Split(r.partialOnlyHeader, ",")
 }
 
 func (r *requestBag) ExceptProps() []string {
+	if r.partialExceptHeader == "" {
+		return []string{}
+	}
 	return strings.Split(r.partialExceptHeader, ",")
 }

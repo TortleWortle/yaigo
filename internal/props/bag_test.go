@@ -24,7 +24,7 @@ func TestBag_Except(t *testing.T) {
 	}, false, false)); err != nil {
 		t.Error(err)
 	}
-	b.Except([]string{"async"})
+	b.Except([]string{"age"})
 	props, err := b.GetProps(context.Background())
 	if err != nil {
 		t.Error(err)
@@ -33,14 +33,14 @@ func TestBag_Except(t *testing.T) {
 	if _, ok := props["username"]; !ok {
 		t.Error("username must be returned")
 	}
-	if _, ok := props["age"]; !ok {
-		t.Error("age must be returned")
+	if _, ok := props["age"]; ok {
+		t.Error("age must not be returned")
 	}
-	if _, ok := props["deferred"]; ok {
-		t.Error("deferred must not be returned")
+	if _, ok := props["deferred"]; !ok {
+		t.Error("deferred must be returned")
 	}
-	if _, ok := props["async"]; ok {
-		t.Error("async must not be returned")
+	if _, ok := props["async"]; !ok {
+		t.Error("async must be returned")
 	}
 }
 
