@@ -2,10 +2,14 @@ package props
 
 import (
 	"context"
-	"golang.org/x/sync/errgroup"
+	"fmt"
 	"slices"
 	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
+
+// TODO: this thing probably needs a massive rework in logic, the deferred prop logic can be as simple as telling the bag if it's a partial or not
 
 type Bag struct {
 	deferredProps map[string][]string
@@ -107,6 +111,9 @@ func (b *Bag) GetProps(ctx context.Context) (map[string]any, error) {
 	b.filterProps()
 	var lock sync.Mutex
 
+	// we have to make sure we cancel the resolve props when the sync props fail
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	g, ctx := errgroup.WithContext(ctx)
 
 	// copy value props over
@@ -120,8 +127,15 @@ func (b *Bag) GetProps(ctx context.Context) (map[string]any, error) {
 		g.Go(func() error {
 			val, err := p.value.fn(ctx)
 			if err != nil {
-				return err
+				return fmt.Errorf("eval async prop %q: %w", p.name, err)
 			}
+
+			// quickly check if the context has already been finished before locking and writing to props
+			err = ctx.Err()
+			if err != nil {
+				return fmt.Errorf("context err for %q: %w", p.name, err)
+			}
+
 			lock.Lock()
 			b.props[p.name] = val
 			lock.Unlock()
@@ -133,10 +147,14 @@ func (b *Bag) GetProps(ctx context.Context) (map[string]any, error) {
 	for _, p := range b.syncProps {
 		val, err := p.value.fn(ctx)
 		if err != nil {
-			return nil, err
+			// unlock so we don't potentially deadlock asyncProp goroutines
+			lock.Unlock()
+			return nil, fmt.Errorf("eval sync prop %q: %w", p.name, err)
 		}
 		b.props[p.name] = val
 	}
+
+	// unlock so the async props can start writing
 	lock.Unlock()
 
 	// wait for async props
