@@ -2,22 +2,24 @@ package yaigo
 
 import (
 	"errors"
-	"github.com/tortlewortle/yaigo/internal/vite"
 	"html/template"
 	"io/fs"
 	"net/http"
+
+	"github.com/tortlewortle/yaigo/internal/vite"
 )
 
-func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
+func NewServer(tfn func(*template.Template) (*template.Template, error), frontend fs.FS, optFns ...OptFunc) (*Server, error) {
+	if tfn == nil {
+		return nil, errors.New("template can not be nil")
+	}
 	if frontend == nil {
 		return nil, errors.New("frontend filesystem can not be nil")
 	}
 
 	// default opts
 	opts := &ServerOpts{
-		ViteUrl:          "",
-		ViteScriptName:   "src/main.js",
-		ViteTemplateName: "index.html",
+		ViteUrl: "",
 	}
 
 	for _, fn := range optFns {
@@ -34,15 +36,21 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 		return nil, err
 	}
 
-	rootTmpl, err := generateRootTemplate(frontend, manifest, opts)
+	rootTmpl, err := generateRootTemplate(tfn, manifest, opts)
 	if err != nil {
 		return nil, err
 	}
 
+	ssrTransport := http.DefaultTransport.(*http.Transport).Clone()
+	ssrTransport.MaxIdleConns = 100
+	ssrTransport.MaxConnsPerHost = 100
+	ssrTransport.MaxIdleConnsPerHost = 100
+
 	server := &Server{
 		manifestVersion: version,
 		ssrHTTPClient: &http.Client{
-			Timeout: opts.SSRTimeout,
+			Timeout:   opts.SSRTimeout,
+			Transport: ssrTransport,
 		},
 		ssrURL:       opts.SSRServerUrl,
 		rootTemplate: rootTmpl,
@@ -57,7 +65,8 @@ func NewServer(frontend fs.FS, optFns ...OptFunc) (*Server, error) {
 type Server struct {
 	manifestVersion string
 
-	rootTemplate  *template.Template
+	rootTemplate *template.Template
+
 	ssrHTTPClient *http.Client
 	ssrURL        string
 
@@ -67,11 +76,11 @@ type Server struct {
 
 // These methods are on the Server struct just to keep the api nice and tidy
 
-func (_ *Server) Redirect(w http.ResponseWriter, r *http.Request, url string) {
+func (*Server) Redirect(w http.ResponseWriter, r *http.Request, url string) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-func (_ *Server) Location(w http.ResponseWriter, url string) {
+func (*Server) Location(w http.ResponseWriter, url string) {
 	w.Header().Set(headerLocation, url)
 	w.WriteHeader(http.StatusConflict)
 }

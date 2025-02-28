@@ -1,9 +1,15 @@
 package props
 
 import (
+	"context"
+	"fmt"
 	"slices"
 	"sync"
+
+	"golang.org/x/sync/errgroup"
 )
+
+// TODO: this thing probably needs a massive rework in logic, the deferred prop logic can be as simple as telling the bag if it's a partial or not
 
 type Bag struct {
 	deferredProps map[string][]string
@@ -16,8 +22,7 @@ type Bag struct {
 	onlyProps   []string
 	exceptProps []string
 
-	wg           *sync.WaitGroup
-	checkpoint   bool
+	dirty        bool
 	loadDeferred bool
 }
 
@@ -34,19 +39,17 @@ func NewBag() *Bag {
 		// re-usable ish
 		deferredProps: make(map[string][]string),
 		props:         make(map[string]any),
-
-		wg: &sync.WaitGroup{},
 	}
 }
 
-// Checkpoint sets the bag as checkpoint and will mark any following incoming props as checkpoint as well
+// Checkpoint sets the bag as dirty and will mark any following incoming props as dirty as well
 //
-// Will remove any checkpoint
+// Will remove any dirty
 func (b *Bag) Checkpoint() {
-	if b.checkpoint {
+	if b.dirty {
 		b.rollback()
 	}
-	b.checkpoint = true
+	b.dirty = true
 }
 
 func filterPropSlice[T any](slice []*Prop[T], check func(*Prop[T]) bool) []*Prop[T] {
@@ -60,7 +63,7 @@ func filterPropSlice[T any](slice []*Prop[T], check func(*Prop[T]) bool) []*Prop
 	return slice[:i]
 }
 
-// Rollback removes any props that are considered checkpoint
+// Rollback removes any props that are considered dirty, will also clear onlyProps and exceptProps
 func (b *Bag) rollback() {
 	b.asyncProps = filterPropSlice(b.asyncProps, func(p *Prop[*LazyProp]) bool {
 		return !p.dirty
@@ -81,13 +84,15 @@ func (b *Bag) rollback() {
 		delete(b.deferredProps, k)
 	}
 
+	b.onlyProps = nil
+	b.exceptProps = nil
+
 	b.loadDeferred = false
-	b.checkpoint = false
+	b.dirty = false
 }
 
 // Only limits it to only certain props
 func (b *Bag) Only(propNames []string) *Bag {
-	b.loadDeferred = true // we want to load deferred props when explicitly asking for them
 	b.onlyProps = propNames
 	return b
 }
@@ -98,19 +103,22 @@ func (b *Bag) Except(propNames []string) *Bag {
 	return b
 }
 
+func (b *Bag) LoadDeferred() *Bag {
+	b.loadDeferred = true
+	return b
+}
+
 // GetProps calculates, evaluates, and returns the props for the current render cycle
 //
 // Deferred props will only be loaded when explicitly asked for.
-func (b *Bag) GetProps() (map[string]any, error) {
+func (b *Bag) GetProps(ctx context.Context) (map[string]any, error) {
 	b.filterProps()
+	var lock sync.Mutex
 
-	// idea: syncmap for results
-	// pros: less loops, simpler execution of props
-	// cons: no error handling if a prop handler fails unless we keep track of errors separately.
-	//
-	// use sync errgroup
-	// pros: track errors
-	// cons: need to accept context inside of the callback functions now
+	// we have to make sure we cancel the resolve props when the sync props fail
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	g, ctx := errgroup.WithContext(ctx)
 
 	// copy value props over
 	for _, prop := range b.valueProps {
@@ -120,35 +128,49 @@ func (b *Bag) GetProps() (map[string]any, error) {
 	}
 
 	for _, p := range b.asyncProps {
-		b.wg.Add(1)
-		go func() {
-			p.value.Execute()
-			b.wg.Done()
-		}()
+		g.Go(func() error {
+			val, err := p.value.fn(ctx)
+			if err != nil {
+				return fmt.Errorf("eval async prop %q: %w", p.name, err)
+			}
+
+			// quickly check if the context has already been finished before locking and writing to props
+			err = ctx.Err()
+			if err != nil {
+				return fmt.Errorf("context err for %q: %w", p.name, err)
+			}
+
+			lock.Lock()
+			b.props[p.name] = val
+			lock.Unlock()
+			return nil
+		})
 	}
 
+	lock.Lock()
 	for _, p := range b.syncProps {
-		p.value.Execute()
-		if p.value.err != nil {
-			return b.props, p.value.err
+		val, err := p.value.fn(ctx)
+		if err != nil {
+			// unlock so we don't potentially deadlock asyncProp goroutines
+			lock.Unlock()
+			return nil, fmt.Errorf("eval sync prop %q: %w", p.name, err)
 		}
-		b.props[p.name] = p.value.result
+		b.props[p.name] = val
 	}
+
+	// unlock so the async props can start writing
+	lock.Unlock()
 
 	// wait for async props
-	b.wg.Wait()
-
-	for _, p := range b.asyncProps {
-		if p.value.err != nil {
-			return b.props, p.value.err
-		}
-		b.props[p.name] = p.value.result
+	err := g.Wait()
+	if err != nil {
+		return nil, err
 	}
 
 	return b.props, nil
 }
 
-// GetDeferredProps returns the props that were deferred after a GetProps call
+// GetDeferredProps returns the props deferred after a GetProps call
 func (b *Bag) GetDeferredProps() map[string][]string {
 	return b.deferredProps
 }
@@ -160,7 +182,7 @@ func (b *Bag) Set(key string, value any) error {
 			name:     key,
 			value:    p,
 			deferred: p.deferred,
-			dirty:    b.checkpoint,
+			dirty:    b.dirty,
 		}
 
 		if p.sync {
@@ -173,7 +195,7 @@ func (b *Bag) Set(key string, value any) error {
 			name:     key,
 			value:    value,
 			deferred: false,
-			dirty:    b.checkpoint,
+			dirty:    b.dirty,
 		}
 
 		b.valueProps = append(b.valueProps, prop)
@@ -196,7 +218,7 @@ func (b *Bag) Clear() {
 	b.syncProps = nil
 
 	b.loadDeferred = false
-	b.checkpoint = false
+	b.dirty = false
 	b.onlyProps = nil
 	b.exceptProps = nil
 }

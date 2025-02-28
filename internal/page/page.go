@@ -8,8 +8,6 @@ type InertiaPage struct {
 	Version        string              `json:"version"`
 	EncryptHistory bool                `json:"encryptHistory"`
 	ClearHistory   bool                `json:"clearHistory"`
-
-	dirty bool
 }
 
 func New() *InertiaPage {
@@ -22,16 +20,6 @@ func New() *InertiaPage {
 	}
 }
 
-// ResetIfDirty is called on render,
-// this should only ever be called when you try to render a page as a result of a failed previous render.
-// for example, if a prop fails to load
-func (data *InertiaPage) ResetIfDirty() {
-	if data.dirty {
-		data.Reset()
-	}
-	data.dirty = true
-}
-
 func (data *InertiaPage) Reset() {
 	data.Component = ""
 	data.Url = ""
@@ -40,5 +28,4 @@ func (data *InertiaPage) Reset() {
 	data.ClearHistory = false
 	data.Props = nil
 	data.DeferredProps = nil
-	data.dirty = false
 }
