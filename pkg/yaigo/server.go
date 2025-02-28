@@ -41,10 +41,16 @@ func NewServer(tfn func(*template.Template) (*template.Template, error), fronten
 		return nil, err
 	}
 
+	ssrTransport := http.DefaultTransport.(*http.Transport).Clone()
+	ssrTransport.MaxIdleConns = 100
+	ssrTransport.MaxConnsPerHost = 100
+	ssrTransport.MaxIdleConnsPerHost = 100
+
 	server := &Server{
 		manifestVersion: version,
 		ssrHTTPClient: &http.Client{
-			Timeout: opts.SSRTimeout,
+			Timeout:   opts.SSRTimeout,
+			Transport: ssrTransport,
 		},
 		ssrURL:       opts.SSRServerUrl,
 		rootTemplate: rootTmpl,
