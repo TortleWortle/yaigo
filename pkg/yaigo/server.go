@@ -76,11 +76,11 @@ type Server struct {
 
 // These methods are on the Server struct just to keep the api nice and tidy
 
-func (_ *Server) Redirect(w http.ResponseWriter, r *http.Request, url string) {
+func (*Server) Redirect(w http.ResponseWriter, r *http.Request, url string) {
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
-func (_ *Server) Location(w http.ResponseWriter, url string) {
+func (*Server) Location(w http.ResponseWriter, url string) {
 	w.Header().Set(headerLocation, url)
 	w.WriteHeader(http.StatusConflict)
 }
