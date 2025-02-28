@@ -53,18 +53,14 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	data.Version = s.manifestVersion
 
 	if isPartial {
-		data.Props, err = res.filterPartialProps(r.Context(), hb)
-		if err != nil {
-			return fmt.Errorf("loading filtered props: %w", err)
-		}
-		data.DeferredProps = nil
-	} else {
-		data.Props, err = bag.GetProps(r.Context())
-		if err != nil {
-			return fmt.Errorf("loading props: %w", err)
-		}
-		data.DeferredProps = bag.GetDeferredProps()
+		res.filterPartialProps(r.Context(), hb)
 	}
+
+	data.Props, err = bag.GetProps(r.Context())
+	if err != nil {
+		return fmt.Errorf("loading props: %w", err)
+	}
+	data.DeferredProps = bag.GetDeferredProps()
 
 	if hb.IsInertia() {
 		return res.renderJson(w, data)
@@ -84,7 +80,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	return res.renderHtml(s, w, data)
 }
 
-func (req *Response) filterPartialProps(ctx context.Context, r *requestBag) (map[string]any, error) {
+func (req *Response) filterPartialProps(ctx context.Context, r *requestBag) {
 	bag := req.propBag
 	bag.LoadDeferred()
 	onlyProps := r.OnlyProps()
@@ -96,8 +92,6 @@ func (req *Response) filterPartialProps(ctx context.Context, r *requestBag) (map
 	if len(exceptProps) > 0 {
 		bag.Except(exceptProps)
 	}
-
-	return bag.GetProps(ctx)
 }
 
 func (req *Response) renderJson(w http.ResponseWriter, data *page.InertiaPage) error {
