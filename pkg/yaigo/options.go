@@ -14,10 +14,10 @@ type ServerOpts struct {
 type OptFunc = func(o *ServerOpts)
 
 // WithViteDevServer loads the script from the url instead of the filesystem, this is for hot-reloading
-func WithViteDevServer(url string, react bool) OptFunc {
+func WithViteDevServer(url string, reactRefresh bool) OptFunc {
 	return func(o *ServerOpts) {
 		o.ViteUrl = url
-		o.ReactRefresh = react
+		o.ReactRefresh = reactRefresh
 	}
 }
 
