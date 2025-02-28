@@ -2,7 +2,6 @@ package yaigo
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -53,7 +52,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	data.Version = s.manifestVersion
 
 	if isPartial {
-		res.filterPartialProps(r.Context(), hb)
+		res.filterPartialProps(hb)
 	}
 
 	data.Props, err = bag.GetProps(r.Context())
@@ -80,15 +79,15 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	return res.renderHtml(s, w, data)
 }
 
-func (req *Response) filterPartialProps(ctx context.Context, r *requestBag) {
+func (req *Response) filterPartialProps(rb *requestBag) {
 	bag := req.propBag
 	bag.LoadDeferred()
-	onlyProps := r.OnlyProps()
+	onlyProps := rb.OnlyProps()
 	if len(onlyProps) > 0 {
 		bag.Only(onlyProps)
 	}
 
-	exceptProps := r.ExceptProps()
+	exceptProps := rb.ExceptProps()
 	if len(exceptProps) > 0 {
 		bag.Except(exceptProps)
 	}
