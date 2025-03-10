@@ -21,6 +21,7 @@ const (
 	headerPartialComponent = "X-Inertia-Partial-Component"
 	headerPartialOnly      = "X-Inertia-Partial-Data"
 	headerPartialExcept    = "X-Inertia-Partial-Except"
+	headerReset            = "X-Inertia-Reset"
 )
 
 type Props map[string]any
