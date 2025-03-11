@@ -175,7 +175,7 @@ func (b *Bag) GetDeferredProps() map[string][]string {
 	return b.deferredProps
 }
 
-func (b *Bag) Set(key string, value any) error {
+func (b *Bag) Set(key string, value any) {
 	switch p := value.(type) {
 	case *LazyProp:
 		prop := &Prop[*LazyProp]{
@@ -200,7 +200,6 @@ func (b *Bag) Set(key string, value any) error {
 
 		b.valueProps = append(b.valueProps, prop)
 	}
-	return nil
 }
 
 func (b *Bag) Clear() {

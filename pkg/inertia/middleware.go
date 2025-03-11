@@ -30,15 +30,19 @@ func NewMiddleware(server *yaigo.Server, opts ...func(*MiddlewareOpts)) func(nex
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r = wrapRequest(r, server, o)
+			r = wrapRequest(w, r, server, o)
 			next.ServeHTTP(w, r)
 		})
 	}
 }
 
-func wrapRequest(r *http.Request, server *yaigo.Server, opts *MiddlewareOpts) *http.Request {
+func wrapRequest(w http.ResponseWriter, r *http.Request, server *yaigo.Server, opts *MiddlewareOpts) *http.Request {
 	inertiaReq := yaigo.NewResponse()
 	inertiaReq.EncryptHistory(opts.EncryptHistory)
+
+	fe := getFlashErrs(w, r)
+
+	_ = inertiaReq.SetProp("errors", fe)
 
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, serverKey, server)
