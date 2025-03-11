@@ -42,10 +42,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	bag.Checkpoint()
 
 	for k, v := range pageProps {
-		err = bag.Set(k, v)
-		if err != nil {
-			return fmt.Errorf("transferring props: %w", err)
-		}
+		bag.Set(k, v)
 	}
 
 	data.Component = page

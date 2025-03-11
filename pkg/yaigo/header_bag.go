@@ -52,6 +52,7 @@ func (r *requestBag) RedirectIfVersionConflict(w http.ResponseWriter, version st
 		return false
 	}
 
+	// TODO: reflash data
 	w.Header().Set(headerLocation, target)
 	w.WriteHeader(http.StatusConflict)
 	return true

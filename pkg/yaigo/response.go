@@ -47,5 +47,7 @@ func (req *Response) SetProp(key string, value any) error {
 	}
 	bag := req.propBag
 
-	return bag.Set(key, value)
+	bag.Set(key, value)
+
+	return nil
 }
