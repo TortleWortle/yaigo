@@ -75,13 +75,15 @@ const (
 	headerLocation = "X-Inertia-Location"
 )
 
-func (c *Ctx) Redirect(url string) {
+func (c *Ctx) Redirect(url string) error {
 	http.Redirect(c.writer, c.request, url, http.StatusSeeOther)
+	return nil
 }
 
-func (c *Ctx) Location(url string) {
+func (c *Ctx) Location(url string) error {
 	c.writer.Header().Set(headerLocation, url)
 	c.writer.WriteHeader(http.StatusConflict)
+	return nil
 }
 
 func (c *Ctx) Back(errs FlashErrors) error {
