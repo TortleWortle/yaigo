@@ -75,6 +75,10 @@ const (
 	headerLocation = "X-Inertia-Location"
 )
 
+func (c *Ctx) SetCookie(cookie *http.Cookie) {
+	http.SetCookie(c.writer, cookie)
+}
+
 func (c *Ctx) Redirect(url string) error {
 	http.Redirect(c.writer, c.request, url, http.StatusSeeOther)
 	return nil
