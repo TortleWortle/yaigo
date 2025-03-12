@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/tortlewortle/yaigo/internal/errflash"
 	"github.com/tortlewortle/yaigo/internal/page"
 )
 
@@ -30,7 +31,10 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	hb := newHeaderBag(r)
 	isPartial := hb.IsPartial(page)
 
-	if hb.RedirectIfVersionConflict(w, s.manifestVersion, r.URL.String()) {
+	if hb.RedirectIfVersionConflict(w, s.manifestVersion) {
+		errflash.Reflash(w, r)
+		w.Header().Set(headerLocation, r.URL.String())
+		w.WriteHeader(http.StatusConflict)
 		return nil
 	}
 

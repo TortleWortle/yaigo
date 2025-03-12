@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+
+	"github.com/tortlewortle/yaigo/internal/errflash"
 )
 
 var DefaultErrHandler = func(w http.ResponseWriter, r *http.Request, err error) {
@@ -86,9 +88,11 @@ func (c *Ctx) Location(url string) error {
 	return nil
 }
 
+type FlashErrors = errflash.FlashErrors
+
 func (c *Ctx) Back(errs FlashErrors) error {
 	if errs != nil {
-		flashError(c.writer, c.request, errs)
+		errflash.FlashError(c.writer, c.request, errs)
 	}
 	http.Redirect(c.writer, c.request, c.request.Referer(), http.StatusSeeOther)
 	return nil

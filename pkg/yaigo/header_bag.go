@@ -43,7 +43,7 @@ func newHeaderBag(r *http.Request) *requestBag {
 }
 
 // RedirectIfVersionConflict redirects the request if the manifest version is outdated on the client, returns true if it has been redirected
-func (r *requestBag) RedirectIfVersionConflict(w http.ResponseWriter, version string, target string) bool {
+func (r *requestBag) RedirectIfVersionConflict(w http.ResponseWriter, version string) bool {
 	if !r.IsInertia() {
 		return false
 	}
@@ -53,8 +53,6 @@ func (r *requestBag) RedirectIfVersionConflict(w http.ResponseWriter, version st
 	}
 
 	// TODO: reflash data
-	w.Header().Set(headerLocation, target)
-	w.WriteHeader(http.StatusConflict)
 	return true
 }
 

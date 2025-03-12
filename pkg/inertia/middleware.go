@@ -3,8 +3,10 @@ package inertia
 import (
 	"context"
 	"errors"
-	"github.com/tortlewortle/yaigo/pkg/yaigo"
 	"net/http"
+
+	"github.com/tortlewortle/yaigo/internal/errflash"
+	"github.com/tortlewortle/yaigo/pkg/yaigo"
 )
 
 type contextKey int
@@ -40,7 +42,7 @@ func wrapRequest(w http.ResponseWriter, r *http.Request, server *yaigo.Server, o
 	inertiaReq := yaigo.NewResponse()
 	inertiaReq.EncryptHistory(opts.EncryptHistory)
 
-	fe := getFlashErrs(w, r)
+	fe := errflash.GetErrors(w, r)
 
 	_ = inertiaReq.SetProp("errors", fe)
 

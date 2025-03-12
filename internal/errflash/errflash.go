@@ -1,4 +1,4 @@
-package inertia
+package errflash
 
 import (
 	"encoding/base64"
@@ -12,8 +12,8 @@ type FlashErrors map[string]string
 
 const errFlashCookie = "inertia_errflash"
 
-// flashError sets a temp cookie for the next request's errors
-func flashError(w http.ResponseWriter, r *http.Request, newErrors FlashErrors) {
+// FlashError sets a temp cookie for the next request's errors
+func FlashError(w http.ResponseWriter, r *http.Request, newErrors FlashErrors) {
 	c, err := r.Cookie(errFlashCookie)
 	fe := make(FlashErrors)
 	if err != nil {
@@ -34,7 +34,6 @@ func flashError(w http.ResponseWriter, r *http.Request, newErrors FlashErrors) {
 	}
 
 	newV, err := json.Marshal(fe)
-
 	if err != nil {
 		slog.Error("could not marshal flashed errors", slog.String("err", err.Error()))
 	}
@@ -44,8 +43,8 @@ func flashError(w http.ResponseWriter, r *http.Request, newErrors FlashErrors) {
 	http.SetCookie(w, c)
 }
 
-// getFlashErrs (and delete)
-func getFlashErrs(w http.ResponseWriter, r *http.Request) (fe FlashErrors) {
+// GetErrors (and delete)
+func GetErrors(w http.ResponseWriter, r *http.Request) (fe FlashErrors) {
 	c, err := r.Cookie(errFlashCookie)
 	if err != nil {
 		return
@@ -57,7 +56,6 @@ func getFlashErrs(w http.ResponseWriter, r *http.Request) (fe FlashErrors) {
 	}
 
 	err = json.Unmarshal(val, &fe)
-
 	if err != nil {
 		return
 	}
@@ -68,4 +66,17 @@ func getFlashErrs(w http.ResponseWriter, r *http.Request) (fe FlashErrors) {
 	http.SetCookie(w, c)
 
 	return
+}
+
+func Reflash(w http.ResponseWriter, r *http.Request) {
+	c, err := r.Cookie(errFlashCookie)
+	if err != nil {
+		return
+	}
+
+	if c != nil {
+		c.Expires = time.Now().Add(time.Minute)
+	}
+
+	http.SetCookie(w, c)
 }
