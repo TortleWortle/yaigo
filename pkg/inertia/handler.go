@@ -76,12 +76,43 @@ func (c *Ctx) Render(page string, props Props) error {
 	return server.Render(req, c.writer, c.request, page, props)
 }
 
-// Error renders the Error component and will print out the cause in devmode (not implemented yet)
-func (c *Ctx) Error(cause error, status int) error {
-	// todo: check devmode, render pretty component instead of raw error if not devmode
-	fmt.Fprintf(c.writer, "error: %v", cause)
+func (c *Ctx) RenderWithStatus(page string, props Props, status int) error {
+	if err := c.Status(status); err != nil {
+		return err
+	}
+	return c.Render(page, props)
+}
 
-	return nil
+func (c *Ctx) ErrorWithProps(cause error, status int, pageProps Props) error {
+	if err := c.Status(status); err != nil {
+		return err
+	}
+	p := Props{
+		"status": status,
+	}
+
+	for k, v := range pageProps {
+		p[k] = v
+	}
+
+	server, err := getServer(c.request)
+	if err != nil {
+		return err
+	}
+
+	if server.IsDevMode() {
+		// TODO: pretty stack trace? :)
+		// TODO: maybe panic recoverer as well
+		fmt.Fprintf(c.writer, "error: %v", cause)
+		return nil
+	}
+	// todo: check devmode, render pretty component instead of raw error if not devmode
+	return c.Render("Error", p)
+}
+
+// Error renders the Error component and will print out the cause in devmode
+func (c *Ctx) Error(cause error, status int) error {
+	return c.ErrorWithProps(cause, status, nil)
 }
 
 func (c *Ctx) Status(status int) error {
