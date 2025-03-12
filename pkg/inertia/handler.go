@@ -3,7 +3,6 @@ package inertia
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 
 	"github.com/tortlewortle/yaigo/internal/errflash"
@@ -11,9 +10,9 @@ import (
 
 var ErrDirtyRender = errors.New("ResponseWriter has already been written to")
 
+// DefaultErrHandler is called when a Handler returns an error (typically prefer c.Error() over returning an error)
 var DefaultErrHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-	slog.Error("handler error", slog.String("err", err.Error()))
-	_, _ = fmt.Fprintf(w, "handler error: %v", err)
+	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
 type HandlerFunc func(c *Ctx, request *http.Request) error
@@ -106,7 +105,6 @@ func (c *Ctx) ErrorWithProps(cause error, status int, pageProps Props) error {
 		fmt.Fprintf(c.writer, "error: %v", cause)
 		return nil
 	}
-	// todo: check devmode, render pretty component instead of raw error if not devmode
 	return c.Render("Error", p)
 }
 

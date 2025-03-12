@@ -52,7 +52,6 @@ func (r *requestBag) RedirectIfVersionConflict(w http.ResponseWriter, version st
 		return false
 	}
 
-	// TODO: reflash data
 	return true
 }
 
