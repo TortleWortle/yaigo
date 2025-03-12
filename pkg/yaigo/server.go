@@ -84,3 +84,7 @@ func (*Server) Location(w http.ResponseWriter, url string) {
 	w.Header().Set(headerLocation, url)
 	w.WriteHeader(http.StatusConflict)
 }
+
+func (s *Server) IsDevMode() bool {
+	return s.viteDevUrl != ""
+}
