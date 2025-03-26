@@ -39,12 +39,11 @@ func NewMiddleware(server *yaigo.Server, opts ...func(*MiddlewareOpts)) func(nex
 }
 
 func wrapRequest(w http.ResponseWriter, r *http.Request, server *yaigo.Server, opts *MiddlewareOpts) *http.Request {
-	inertiaReq := yaigo.NewResponse()
+	inertiaReq := yaigo.NewRequest()
 	inertiaReq.EncryptHistory(opts.EncryptHistory)
 
-	fe := errflash.GetErrors(w, r)
-
-	_ = inertiaReq.SetProp("errors", fe)
+	errs := errflash.GetErrors(w, r)
+	inertiaReq.SetProp("errors", errs)
 
 	ctx := r.Context()
 	ctx = context.WithValue(ctx, serverKey, server)
@@ -66,13 +65,13 @@ func getServer(r *http.Request) (*yaigo.Server, error) {
 	return val, nil
 }
 
-func getResponse(r *http.Request) (*yaigo.Response, error) {
+func getRequest(r *http.Request) (*yaigo.Request, error) {
 	rawVal := r.Context().Value(requestKey)
 	if rawVal == nil {
 		return nil, errors.New("request not set in context")
 	}
 
-	val, ok := rawVal.(*yaigo.Response)
+	val, ok := rawVal.(*yaigo.Request)
 	if !ok {
 		return nil, errors.New("request provided but could not be cast")
 	}

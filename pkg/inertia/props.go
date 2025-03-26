@@ -8,12 +8,12 @@ import (
 
 type Props = yaigo.Props
 
-func SetProp(r *http.Request, key string, value any) error {
-	req, err := getResponse(r)
+func SetProp(r *http.Request, key string, value any) {
+	req, err := getRequest(r)
 	if err != nil {
-		return err
+		panic("SetProp: could not get *yaigo.Request from *http.Request context, is it wrapped in the middleware?")
 	}
-	return req.SetProp(key, value)
+	req.SetProp(key, value)
 }
 
 // Resolve evaluates the prop fn in a separate goroutine

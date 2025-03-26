@@ -10,15 +10,20 @@ import (
 
 var ErrDirtyRender = errors.New("ResponseWriter has already been written to")
 
-// DefaultErrHandler is called when a Handler returns an error (typically prefer c.Error() over returning an error)
+// DefaultErrHandler is called when a HandlerFunc returns an error (typically prefer c.Error() over returning an error)
 var DefaultErrHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 	http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 }
 
 type HandlerFunc func(c *Ctx, request *http.Request) error
 
+// ServeHTTP calls Handler(f)(w, r).
+func (f HandlerFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	Handler(f)(w, r)
+}
+
 func Handler(handlerFunc HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		c := &Ctx{
 			request: r,
 			writer:  w,
@@ -28,7 +33,7 @@ func Handler(handlerFunc HandlerFunc) http.HandlerFunc {
 			DefaultErrHandler(w, r, err)
 			return
 		}
-	})
+	}
 }
 
 type Ctx struct {
@@ -68,24 +73,20 @@ func (c *Ctx) Render(page string, props Props) error {
 	if err != nil {
 		return err
 	}
-	req, err := getResponse(c.request)
+	req, err := getRequest(c.request)
 	if err != nil {
 		return err
 	}
-	return server.Render(req, c.writer, c.request, page, props)
+	return server.RenderRequest(req, c.writer, c.request, page, props)
 }
 
-func (c *Ctx) RenderWithStatus(page string, props Props, status int) error {
-	if err := c.Status(status); err != nil {
-		return err
-	}
+func (c *Ctx) RenderWithStatus(page string, status int, props Props) error {
+	c.Status(status)
 	return c.Render(page, props)
 }
 
 func (c *Ctx) ErrorWithProps(cause error, status int, pageProps Props) error {
-	if err := c.Status(status); err != nil {
-		return err
-	}
+	c.Status(status)
 	p := Props{
 		"status": status,
 	}
@@ -113,19 +114,18 @@ func (c *Ctx) Error(cause error, status int) error {
 	return c.ErrorWithProps(cause, status, nil)
 }
 
-func (c *Ctx) Status(status int) error {
-	req, err := getResponse(c.request)
+func (c *Ctx) Status(status int) {
+	req, err := getRequest(c.request)
 	if err != nil {
-		return err
+		panic("Status: could not get *yaigo.Request from *http.Request context, is it wrapped in the middleware?")
 	}
 	req.SetStatus(status)
-	return nil
 }
 
 // ClearHistory tells inertiajs to roll the cache encryption key.
 // This can be used to protect any sensitive information from being accessed after logout by using the back button.
 func (c *Ctx) ClearHistory() error {
-	req, err := getResponse(c.request)
+	req, err := getRequest(c.request)
 	if err != nil {
 		return err
 	}
@@ -144,6 +144,16 @@ func (c *Ctx) SetCookie(cookie *http.Cookie) {
 func (c *Ctx) Redirect(url string) error {
 	http.Redirect(c.writer, c.request, url, http.StatusSeeOther)
 	return nil
+}
+
+// Redirect instructs inertia to redirect properly using http.StatusSeeOther
+func Redirect(w http.ResponseWriter, r *http.Request, url string) {
+	http.Redirect(w, r, url, http.StatusSeeOther)
+}
+
+// Location redirects to external urls
+func Location(w http.ResponseWriter, r *http.Request, url string) {
+	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
 func (c *Ctx) Location(url string) error {

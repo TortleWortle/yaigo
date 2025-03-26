@@ -27,7 +27,13 @@ const (
 
 type Props map[string]any
 
-func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
+func (s *Server) Render(w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
+	req := NewRequest()
+
+	return s.RenderRequest(req, w, r, page, pageProps)
+}
+
+func (s *Server) RenderRequest(res *Request, w http.ResponseWriter, r *http.Request, page string, pageProps Props) error {
 	hb := newHeaderBag(r)
 	isPartial := hb.IsPartial(page)
 
@@ -81,7 +87,7 @@ func (s *Server) Render(res *Response, w http.ResponseWriter, r *http.Request, p
 	return res.renderHtml(s, w, data)
 }
 
-func (req *Response) filterPartialProps(rb *requestBag) {
+func (req *Request) filterPartialProps(rb *requestBag) {
 	bag := req.propBag
 	bag.LoadDeferred()
 	onlyProps := rb.OnlyProps()
@@ -95,7 +101,7 @@ func (req *Response) filterPartialProps(rb *requestBag) {
 	}
 }
 
-func (req *Response) renderJson(w http.ResponseWriter, data *page.InertiaPage) error {
+func (req *Request) renderJson(w http.ResponseWriter, data *page.InertiaPage) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Vary", headerInertia)
 	w.Header().Set(headerInertia, "true")
@@ -114,7 +120,7 @@ func (s *Server) inertiaBaseHead() template.HTML {
 	return ""
 }
 
-func (req *Response) renderHtml(s *Server, w http.ResponseWriter, data *page.InertiaPage) error {
+func (req *Request) renderHtml(s *Server, w http.ResponseWriter, data *page.InertiaPage) error {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(req.status)
 	propStr, err := json.Marshal(data)
@@ -135,7 +141,7 @@ type ssrResponse struct {
 	Body string   `json:"body"`
 }
 
-func (req *Response) renderSSR(s *Server, w http.ResponseWriter, data *page.InertiaPage) error {
+func (req *Request) renderSSR(s *Server, w http.ResponseWriter, data *page.InertiaPage) error {
 	renderPath, err := url.JoinPath(s.ssrURL, "/render")
 	if err != nil {
 		return err
