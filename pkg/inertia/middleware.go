@@ -54,12 +54,12 @@ func wrapRequest(w http.ResponseWriter, r *http.Request, server *yaigo.Server, o
 func getServer(r *http.Request) (*yaigo.Server, error) {
 	rawVal := r.Context().Value(serverKey)
 	if rawVal == nil {
-		return nil, errors.New("server not set in context")
+		return nil, errors.New("*yaigo.Server not set in context")
 	}
 
 	val, ok := rawVal.(*yaigo.Server)
 	if !ok {
-		return nil, errors.New("server provided but could not be cast")
+		return nil, errors.New("*yaigo.Server provided but could not be cast")
 	}
 
 	return val, nil
@@ -68,12 +68,12 @@ func getServer(r *http.Request) (*yaigo.Server, error) {
 func getRequest(r *http.Request) (*yaigo.Request, error) {
 	rawVal := r.Context().Value(requestKey)
 	if rawVal == nil {
-		return nil, errors.New("request not set in context")
+		return nil, errors.New("*yaigo.Request not set in context")
 	}
 
 	val, ok := rawVal.(*yaigo.Request)
 	if !ok {
-		return nil, errors.New("request provided but could not be cast")
+		return nil, errors.New("*yaigo.Request provided but could not be cast")
 	}
 
 	return val, nil
