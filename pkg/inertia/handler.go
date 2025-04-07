@@ -172,7 +172,8 @@ func Redirect(w http.ResponseWriter, r *http.Request, url string) {
 
 // Location redirects to external urls
 func Location(w http.ResponseWriter, r *http.Request, url string) {
-	http.Redirect(w, r, url, http.StatusSeeOther)
+	w.Header().Set(headerLocation, url)
+	w.WriteHeader(http.StatusConflict)
 }
 
 func (c *Ctx) Location(url string) error {
