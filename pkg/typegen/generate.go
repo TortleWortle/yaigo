@@ -105,7 +105,7 @@ func GenerateTypeScript(typeDir string, component string, props map[string]any, 
 					builder.WriteString("\n")
 					hasImported = true
 				}
-				builder.WriteString(fmt.Sprintf("import { %s } from './%s'\n", std.Ident, std.Ident))
+				builder.WriteString(fmt.Sprintf("import { type %s } from './%s'\n", std.Ident, std.Ident))
 			}
 		}
 
