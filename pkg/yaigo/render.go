@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/tortlewortle/yaigo/pkg/typegen"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -68,6 +69,43 @@ func (s *Server) RenderRequest(res *Request, w http.ResponseWriter, r *http.Requ
 		return fmt.Errorf("loading props: %w", err)
 	}
 	data.DeferredProps = bag.GetDeferredProps()
+
+	if s.typeGenFilePath != "" {
+		s.typeGenLock.Lock()
+		defer s.typeGenLock.Unlock()
+
+		propsForGen := Props{}
+		forcedOptionals := s.typeGenOptionalsCache[page]
+
+		existingProps, ok := s.typeGenPropCache[page]
+		if ok {
+			// if cache exists
+			for k, v := range existingProps {
+				propsForGen[k] = v
+			}
+
+			for k, v := range data.Props {
+				_, ok := propsForGen[k]
+				if !ok {
+					// prop is new, probably deferred, lets mark it forced optional
+					forcedOptionals = append(forcedOptionals, k)
+				}
+				propsForGen[k] = v
+			}
+		} else {
+			for k, v := range data.Props {
+				propsForGen[k] = v
+			}
+		}
+
+		s.typeGenOptionalsCache[page] = forcedOptionals
+		s.typeGenPropCache[page] = propsForGen
+
+		err = typegen.GenerateTypeScript(s.typeGenFilePath, page, propsForGen, forcedOptionals)
+		if err != nil {
+			return fmt.Errorf("typegen generation: %w", err)
+		}
+	}
 
 	if hb.IsInertia() {
 		return res.renderJson(w, data)

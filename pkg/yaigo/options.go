@@ -5,10 +5,11 @@ import (
 )
 
 type ServerOpts struct {
-	ViteUrl      string
-	SSRServerUrl string
-	ReactRefresh bool
-	SSRTimeout   time.Duration
+	ViteUrl       string
+	SSRServerUrl  string
+	ReactRefresh  bool
+	SSRTimeout    time.Duration
+	TypeGenOutput string
 }
 
 type OptFunc = func(o *ServerOpts)
@@ -26,5 +27,11 @@ func WithSSR(url string, timeout time.Duration) OptFunc {
 	return func(o *ServerOpts) {
 		o.SSRServerUrl = url
 		o.SSRTimeout = timeout
+	}
+}
+
+func WithTypeGen(path string) OptFunc {
+	return func(o *ServerOpts) {
+		o.TypeGenOutput = path
 	}
 }

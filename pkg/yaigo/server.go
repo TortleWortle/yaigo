@@ -2,9 +2,12 @@ package yaigo
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"net/http"
+	"os"
+	"sync"
 
 	"github.com/tortlewortle/yaigo/internal/vite"
 )
@@ -24,6 +27,13 @@ func NewServer(tfn func(*template.Template) (*template.Template, error), fronten
 
 	for _, fn := range optFns {
 		fn(opts)
+	}
+
+	if opts.TypeGenOutput != "" {
+		err := os.MkdirAll(opts.TypeGenOutput, 0700)
+		if err != nil {
+			return nil, fmt.Errorf("creating typegen output folder: %w", err)
+		}
 	}
 
 	manifest, err := vite.FromDistFS(frontend)
@@ -47,7 +57,11 @@ func NewServer(tfn func(*template.Template) (*template.Template, error), fronten
 	ssrTransport.MaxIdleConnsPerHost = 100
 
 	server := &Server{
-		manifestVersion: version,
+		typeGenFilePath:       opts.TypeGenOutput,
+		typeGenLock:           &sync.Mutex{},
+		typeGenPropCache:      make(map[string]Props),
+		typeGenOptionalsCache: make(map[string][]string),
+		manifestVersion:       version,
 		ssrHTTPClient: &http.Client{
 			Timeout:   opts.SSRTimeout,
 			Transport: ssrTransport,
@@ -70,8 +84,12 @@ type Server struct {
 	ssrHTTPClient *http.Client
 	ssrURL        string
 
-	reactRefresh bool
-	viteDevUrl   string
+	reactRefresh          bool
+	viteDevUrl            string
+	typeGenFilePath       string
+	typeGenLock           *sync.Mutex
+	typeGenPropCache      map[string]Props
+	typeGenOptionalsCache map[string][]string
 }
 
 // These methods are on the Server struct just to keep the api nice and tidy
