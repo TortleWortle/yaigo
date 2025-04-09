@@ -5,6 +5,7 @@ import (
 	"github.com/tortlewortle/yaigo/internal/page"
 	"github.com/tortlewortle/yaigo/pkg/typegen"
 	"log/slog"
+	"reflect"
 	"slices"
 	"sync"
 )
@@ -42,8 +43,16 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) {
 		}
 
 		for k, v := range props {
-			_, ok := propsForGen[k]
-			if !ok {
+			existingProp, ok := propsForGen[k]
+			if ok {
+				// smoke test if the prop types are all still the same
+				// (so two pages using the same component won't provide different types
+				et := reflect.TypeOf(existingProp)
+				vt := reflect.TypeOf(v)
+				if et.Kind() != vt.Kind() {
+					panic(fmt.Sprintf("prop %s for %s has conflicting types: %v != %v", k, inertiaPage.Component, et.Name(), vt.Name()))
+				}
+			} else {
 				// prop is new, probably deferred, lets mark it forced optional
 				forcedOptionals = append(forcedOptionals, k)
 				updated = true
