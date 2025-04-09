@@ -20,6 +20,9 @@ const (
 	Struct
 	Map
 	Array
+	Any
+	Null
+	Invalid
 )
 
 type Ident string
@@ -40,7 +43,7 @@ func (i Ident) String() string {
 }
 
 type TsType struct {
-	Kind     string
+	Kind     Kind
 	Optional bool
 
 	// Identifier,
@@ -52,23 +55,23 @@ type TsType struct {
 }
 
 func (t *TsType) MapKey() TsType {
-	if len(t.Properties) != 2 || t.Kind != TypeDict {
-		panic("Name can only be called on TypeDict")
+	if len(t.Properties) != 2 || t.Kind != Map {
+		panic("Name can only be called on Map")
 	}
 
 	return t.Properties[0]
 }
 
 func (t *TsType) Elem() TsType {
-	if len(t.Properties) == 2 && t.Kind == TypeDict {
+	if len(t.Properties) == 2 && t.Kind == Map {
 		return t.Properties[1]
 	}
 
-	if len(t.Properties) == 1 && t.Kind == TypeArray {
+	if len(t.Properties) == 1 && t.Kind == Array {
 		return t.Properties[0]
 	}
 
-	panic("Elem can only be called on TypeArray or TypeDicts (children mismatch)")
+	panic("Elem can only be called on Array or Map (children mismatch)")
 }
 
 var titleCaser = cases.Title(language.English)
@@ -87,7 +90,7 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 	switch v.Kind() {
 	case reflect.Interface:
 		return TsType{
-			Kind:  TypeAny,
+			Kind:  Any,
 			Ident: TypeAny,
 		}, nil
 	case reflect.Map:
@@ -103,7 +106,7 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 			return t, fmt.Errorf("getting elem type: %w", err)
 		}
 		return TsType{
-			Kind:       TypeDict,
+			Kind:       Map,
 			Ident:      TypeDict,
 			Properties: []TsType{keyType, elemType},
 		}, nil
@@ -124,7 +127,7 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 			return t, fmt.Errorf("converting slice type: %w", err)
 		}
 		return TsType{
-			Kind:       TypeArray,
+			Kind:       Array,
 			Ident:      TypeArray,
 			Properties: []TsType{et},
 		}, nil
@@ -134,7 +137,7 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 			return t, err
 		}
 		return TsType{
-			Kind:       TypeStruct,
+			Kind:       Struct,
 			Optional:   false,
 			Ident:      Ident(fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(v.PkgPath())), v.Name())),
 			Properties: children,
@@ -142,7 +145,7 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 	default:
 		baseType := getBasicTsType(v)
 		return TsType{
-			Kind:     baseType.String(),
+			Kind:     Primitive,
 			Ident:    baseType,
 			Optional: false,
 		}, nil
@@ -151,7 +154,7 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 
 func NewRootType(name Ident, properties []TsType) TsType {
 	return TsType{
-		Kind:       TypeStruct,
+		Kind:       Struct,
 		Optional:   false,
 		Ident:      name,
 		Name:       "",
@@ -163,7 +166,8 @@ func getTypeFromValue(key string, v any) (TsType, error) {
 	t := reflect.TypeOf(v)
 	if v == nil {
 		return TsType{
-			Kind:     TypeNull,
+			Kind:     Primitive,
+			Ident:    TypeNull,
 			Optional: false,
 			Name:     key,
 		}, nil
@@ -217,9 +221,9 @@ func ConvertMap(props map[string]any) ([]TsType, error) {
 			return nil, fmt.Errorf("converting %s: %w", k, err)
 		}
 
-		if t.Kind == TypeInvalid {
+		if t.Kind == Invalid {
 			// invalid type found, skip for now
-			t.Kind = "never"
+			t.Ident = "never"
 		}
 		types = append(types, t)
 	}
@@ -247,16 +251,16 @@ type identCache = map[Ident][]TsType
 
 func getTypeDefs(cache identCache, types []TsType) {
 	for _, v := range types {
-		if v.Kind == TypeStruct {
+		if v.Kind == Struct {
 			if _, ok := cache[v.Ident]; !ok {
 				cache[v.Ident] = v.Properties
 				getTypeDefs(cache, v.Properties)
 			}
 		}
 
-		if v.Kind == TypeArray {
+		if v.Kind == Array {
 			cv := v.Elem()
-			if cv.Kind == TypeStruct {
+			if cv.Kind == Struct {
 				if _, ok := cache[cv.Ident]; !ok {
 					cache[cv.Ident] = cv.Properties
 					getTypeDefs(cache, cv.Properties)
@@ -264,9 +268,9 @@ func getTypeDefs(cache identCache, types []TsType) {
 			}
 		}
 
-		if v.Kind == TypeDict {
+		if v.Kind == Map {
 			cv := v.Elem()
-			if cv.Kind == TypeStruct {
+			if cv.Kind == Struct {
 				if _, ok := cache[cv.Ident]; !ok {
 					cache[cv.Ident] = cv.Properties
 					getTypeDefs(cache, cv.Properties)
