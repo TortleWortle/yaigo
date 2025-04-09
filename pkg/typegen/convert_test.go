@@ -73,7 +73,8 @@ func TestGenerateTypeDefs(t *testing.T) {
 		t.Error(err)
 	}
 
-	typeDefs := typegen.GenerateTypeDef(parent, true)
+	parent.Export(true)
+	typeDefs := typegen.GenerateTypeDef(parent)
 
 	if typeDefs != expectedOutput {
 		t.Errorf("output mismatch. got: \n%s\n expected:\n%s\n", typeDefs, expectedOutput)

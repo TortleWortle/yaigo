@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
-	"sort"
 	"strings"
-	"unicode"
 )
 
-func GenerateTypeDef(parent TsType, export bool) string {
+func GenerateTypeDef(parent TsType) string {
+	if parent.Kind != Object {
+		panic("can only generate typedefs for objects")
+	}
 	types := parent.Properties
 	var writer strings.Builder
-	if export {
+	if parent.export {
 		writer.WriteString("export ")
 	}
 	writer.WriteString(fmt.Sprintf("type %s = {\n", parent.Ident))
@@ -51,42 +51,8 @@ func GenerateTypeDef(parent TsType, export bool) string {
 	return writer.String()
 }
 
-func GenerateTypeScriptForComponent(typeDir string, component string, props map[string]any, optionals []string) error {
-	componentName, err := FormatComponentName(component)
-	if err != nil {
-		return fmt.Errorf("formatting component name: %w", err)
-	}
-	componentName = fmt.Sprintf("%sProps", componentName)
-
-	var typesWithOptionals []TsType
-
-	root, err := ParseMap(Ident(componentName), props)
-	if err != nil {
-		return fmt.Errorf("ParseMap: %w", err)
-	}
-
-	for _, t := range root.Properties {
-		if slices.Contains(optionals, t.Name) {
-			t.Optional = true
-		}
-		typesWithOptionals = append(typesWithOptionals, t)
-	}
-
-	root.Properties = typesWithOptionals
-
-	typeDefCache := make(identCache)
-	typeDefCache[Ident(componentName)] = root
-	getTypeDefs(typeDefCache, root)
-
-	// sort alphabetically
-	var typeDefs []TsType
-	for _, subType := range typeDefCache {
-		typeDefs = append(typeDefs, subType)
-	}
-
-	sort.Slice(typeDefs, func(i, j int) bool {
-		return strings.Map(unicode.ToUpper, typeDefs[i].Ident.String()) < strings.Map(unicode.ToUpper, typeDefs[j].Ident.String())
-	})
+func GenerateTypeScriptForComponent(typeDir string, root TsType) error {
+	typeDefs := ExtractTypeDefs(root)
 
 	for _, td := range typeDefs {
 		f, err := os.OpenFile(filepath.Join(typeDir, fmt.Sprintf("%s.ts", td.Ident)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
@@ -103,7 +69,8 @@ func GenerateTypeScriptForComponent(typeDir string, component string, props map[
 		}
 
 		builder.WriteString("\n")
-		builder.WriteString(GenerateTypeDef(td, true))
+		td.Export(true)
+		builder.WriteString(GenerateTypeDef(td))
 		_, err = f.Write([]byte(builder.String()))
 		if err != nil {
 			f.Close()

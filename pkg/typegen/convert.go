@@ -46,6 +46,15 @@ type TsType struct {
 	Ident      Ident
 	Name       string
 	Properties []TsType
+
+	export bool
+}
+
+func (t *TsType) Export(export bool) {
+	if t.Kind != Object {
+		panic("can only export Object")
+	}
+	t.export = export
 }
 
 func (t *TsType) MapKey() TsType {
@@ -232,14 +241,36 @@ func FormatComponentName(component string) (string, error) {
 	return componentName.String(), nil
 }
 
+// ExtractTypeDefs extracts all type defs from the root and properties, sorted alphabetically.
+//
+// Includes the root definition
+func ExtractTypeDefs(root TsType) []TsType {
+	typeDefCache := make(identCache)
+	typeDefCache[root.Ident] = root
+	extractAllTypeDefs(typeDefCache, root)
+
+	// not actually sorted yet
+	var sortedTypeDefs []TsType
+	for _, subType := range typeDefCache {
+		sortedTypeDefs = append(sortedTypeDefs, subType)
+	}
+
+	// now they're sorted
+	sort.Slice(sortedTypeDefs, func(i, j int) bool {
+		return strings.Map(unicode.ToUpper, sortedTypeDefs[i].Ident.String()) < strings.Map(unicode.ToUpper, sortedTypeDefs[j].Ident.String())
+	})
+
+	return sortedTypeDefs
+}
+
 type identCache = map[Ident]TsType
 
-func getTypeDefs(cache identCache, types TsType) {
+func extractAllTypeDefs(cache identCache, types TsType) {
 	for _, v := range types.Properties {
 		if v.Kind == Object {
 			if _, ok := cache[v.Ident]; !ok {
 				cache[v.Ident] = v
-				getTypeDefs(cache, v)
+				extractAllTypeDefs(cache, v)
 			}
 		}
 
@@ -248,7 +279,7 @@ func getTypeDefs(cache identCache, types TsType) {
 			if cv.Kind == Object {
 				if _, ok := cache[cv.Ident]; !ok {
 					cache[cv.Ident] = cv
-					getTypeDefs(cache, cv)
+					extractAllTypeDefs(cache, cv)
 				}
 			}
 		}
@@ -258,7 +289,7 @@ func getTypeDefs(cache identCache, types TsType) {
 			if cv.Kind == Object {
 				if _, ok := cache[cv.Ident]; !ok {
 					cache[cv.Ident] = cv
-					getTypeDefs(cache, cv)
+					extractAllTypeDefs(cache, cv)
 				}
 			}
 		}

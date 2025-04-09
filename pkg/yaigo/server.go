@@ -29,13 +29,6 @@ func NewServer(tfn func(*template.Template) (*template.Template, error), fronten
 		fn(opts)
 	}
 
-	if opts.TypeGenOutput != "" {
-		err := os.MkdirAll(opts.TypeGenOutput, 0700)
-		if err != nil {
-			return nil, fmt.Errorf("creating typegen output folder: %w", err)
-		}
-	}
-
 	manifest, err := vite.FromDistFS(frontend)
 	if err != nil {
 		return nil, err
@@ -57,11 +50,8 @@ func NewServer(tfn func(*template.Template) (*template.Template, error), fronten
 	ssrTransport.MaxIdleConnsPerHost = 100
 
 	server := &Server{
-		typeGenFilePath:       opts.TypeGenOutput,
-		typeGenLock:           &sync.Mutex{},
-		typeGenPropCache:      make(map[string]Props),
-		typeGenOptionalsCache: make(map[string][]string),
-		manifestVersion:       version,
+		typeGen:         nil,
+		manifestVersion: version,
 		ssrHTTPClient: &http.Client{
 			Timeout:   opts.SSRTimeout,
 			Transport: ssrTransport,
@@ -71,6 +61,20 @@ func NewServer(tfn func(*template.Template) (*template.Template, error), fronten
 
 		viteDevUrl:   opts.ViteUrl,
 		reactRefresh: opts.ReactRefresh,
+	}
+
+	if opts.TypeGenOutput != "" {
+		err := os.MkdirAll(opts.TypeGenOutput, 0700)
+		if err != nil {
+			return nil, fmt.Errorf("creating typegen output folder: %w", err)
+		}
+
+		server.typeGen = &typeGenerator{
+			dirPath:        opts.TypeGenOutput,
+			lock:           &sync.Mutex{},
+			propCache:      make(map[string]Props),
+			optionalsCache: make(map[string][]string),
+		}
 	}
 
 	return server, nil
@@ -84,12 +88,9 @@ type Server struct {
 	ssrHTTPClient *http.Client
 	ssrURL        string
 
-	reactRefresh          bool
-	viteDevUrl            string
-	typeGenFilePath       string
-	typeGenLock           *sync.Mutex
-	typeGenPropCache      map[string]Props
-	typeGenOptionalsCache map[string][]string
+	reactRefresh bool
+	viteDevUrl   string
+	typeGen      *typeGenerator
 }
 
 // These methods are on the Server struct just to keep the api nice and tidy
