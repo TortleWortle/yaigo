@@ -1,6 +1,8 @@
 package typegen
 
 import (
+	"encoding"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"golang.org/x/text/cases"
@@ -41,11 +43,16 @@ func (i Ident) String() string {
 
 // TsType describes a Go type as what it would be in a TypeScript type
 type TsType struct {
-	Kind       Kind
-	Optional   bool
-	Ident      Ident
-	Name       string
-	Properties []TsType
+	Kind         Kind
+	Optional     bool
+	Ident        Ident
+	PropertyName string
+	Properties   []TsType
+
+	PkgPath string
+	Name    string
+
+	Comment string // Optional comment to list next to the file
 
 	export bool
 }
@@ -59,7 +66,7 @@ func (t *TsType) Export(export bool) {
 
 func (t *TsType) MapKey() TsType {
 	if len(t.Properties) != 2 || t.Kind != Map {
-		panic("Name can only be called on Map")
+		panic("PropertyName can only be called on Map")
 	}
 
 	return t.Properties[0]
@@ -89,83 +96,108 @@ func getBasicTsType(v reflect.Type) Ident {
 	return TypeInvalid
 }
 
-func getTsType(v reflect.Type) (t TsType, err error) {
-	switch v.Kind() {
+func getTsType(t reflect.Type) (out TsType, err error) {
+	if t == nil {
+		return TsType{
+			Kind:         Primitive,
+			Ident:        TypeNull,
+			Optional:     false,
+			PropertyName: "this_is_a_bug",
+		}, nil
+	}
+
+	switch t.Kind() {
 	case reflect.Interface:
-		t.Kind = Any
-		t.Ident = TypeAny
+		out.Kind = Any
+		out.Ident = TypeAny
 	case reflect.Map:
-		if !v.Key().ConvertibleTo(reflect.TypeFor[string]()) {
-			return t, errors.New("map key must be a string-able")
+		if !t.Key().ConvertibleTo(reflect.TypeFor[string]()) {
+			return out, errors.New("map key must be a string-able")
 		}
-		keyType, err := getTsType(v.Key())
+		keyType, err := getTsType(t.Key())
 		if err != nil {
-			return t, fmt.Errorf("getting key type: %w", err)
+			return out, fmt.Errorf("getting key type: %w", err)
 		}
-		elemType, err := getTsType(v.Elem())
+		elemType, err := getTsType(t.Elem())
 		if err != nil {
-			return t, fmt.Errorf("getting elem type: %w", err)
+			return out, fmt.Errorf("getting elem type: %w", err)
 		}
-		t.Kind = Map
-		t.Properties = []TsType{keyType, elemType}
+		out.Kind = Map
+		out.Properties = []TsType{keyType, elemType}
 	case reflect.Pointer:
-		pe := v.Elem()
+		pe := t.Elem()
 		pt, err := getTsType(pe)
 		if err != nil {
-			return t, fmt.Errorf("converting pointer type: %w", err)
+			return out, fmt.Errorf("converting pointer type: %w", err)
 		}
 		pt.Optional = true
-		t = pt
+		out = pt
 	case reflect.Array:
 		fallthrough
 	case reflect.Slice:
-		pt := v.Elem()
+		ok := t.Implements(reflect.TypeFor[encoding.TextMarshaler]())
+		if ok {
+			out.Kind = Primitive
+			out.Ident = TypeString
+			out.Comment = "implements encoding.TextMarshaler"
+			break
+		}
+		pt := t.Elem()
 		et, err := getTsType(pt)
 		if err != nil {
-			return t, fmt.Errorf("converting slice type: %w", err)
+			return out, fmt.Errorf("converting slice type: %w", err)
 		}
 
-		t.Kind = Array
-		t.Properties = []TsType{et}
+		out.Kind = Array
+		out.Properties = []TsType{et}
 	case reflect.Struct:
-		t, err = ParseStruct(v)
+		ok := t.Implements(reflect.TypeFor[encoding.TextMarshaler]())
+		if ok {
+			out.Kind = Primitive
+			out.Ident = TypeString
+			out.Comment = "implements encoding.TextMarshaler"
+			break
+		}
+		ok = t.Implements(reflect.TypeFor[json.Marshaler]())
+		if ok {
+			out.Kind = Primitive
+			out.Ident = TypeAny
+			out.Comment = "implements json.Marshaler"
+			break
+		}
+		out, err = ParseStruct(t)
 		if err != nil {
-			return t, err
+			return out, err
 		}
 	default:
-		baseType := getBasicTsType(v)
-		t.Kind = Primitive
-		t.Ident = baseType
-		t.Optional = false
+		baseType := getBasicTsType(t)
+		out.Kind = Primitive
+		out.Ident = baseType
+		out.Optional = false
 	}
-	return t, nil
+
+	out.PkgPath = t.PkgPath()
+	out.Name = t.Name()
+	return out, nil
 }
 
 func NewType(kind Kind, name Ident, properties []TsType) TsType {
 	return TsType{
-		Kind:       kind,
-		Optional:   false,
-		Ident:      name,
-		Name:       "",
-		Properties: properties,
+		Kind:         kind,
+		Optional:     false,
+		Ident:        name,
+		PropertyName: "",
+		Properties:   properties,
 	}
 }
 
 func getTypeFromValue(key string, v any) (TsType, error) {
 	t := reflect.TypeOf(v)
-	if v == nil {
-		return TsType{
-			Kind:     Primitive,
-			Ident:    TypeNull,
-			Optional: false,
-			Name:     key,
-		}, nil
-	}
 	tst, err := getTsType(t)
 	if err != nil {
 		return TsType{}, fmt.Errorf("gettype: %w", err)
 	}
-	tst.Name = key
+	tst.PropertyName = key
 	return tst, nil
 }
 
@@ -193,7 +225,7 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 
 		jsonOptional := slices.Contains(strings.Split(jsonOpts, ","), "omitempty")
 		fieldType, err := getTsType(f.Type)
-		fieldType.Name = key
+		fieldType.PropertyName = key
 		if err != nil {
 			return TsType{
 				Kind: Invalid,
@@ -220,7 +252,7 @@ func ParseMap(ident Ident, props map[string]any) (TsType, error) {
 	}
 
 	sort.Slice(types, func(i, j int) bool {
-		return strings.Map(unicode.ToUpper, types[i].Name) < strings.Map(unicode.ToUpper, types[j].Name)
+		return strings.Map(unicode.ToUpper, types[i].PropertyName) < strings.Map(unicode.ToUpper, types[j].PropertyName)
 	})
 
 	root := NewType(Object, ident, types)

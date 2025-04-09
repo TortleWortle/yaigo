@@ -16,7 +16,9 @@ type typeGenerator struct {
 	optionalsCache map[string][]string
 }
 
-func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) (err error) {
+func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) {
+	// little dirty but we don't really care about these errors beyond logging
+	var err error
 	defer func() {
 		if err != nil {
 			slog.Warn("typegen error", slog.Any("error", err))
@@ -31,6 +33,7 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) (err error) {
 	propsForGen := Props{}
 	forcedOptionals := g.optionalsCache[component]
 
+	var updated bool
 	existingProps, ok := g.propCache[component]
 	if ok {
 		// if cache exists
@@ -43,13 +46,20 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) (err error) {
 			if !ok {
 				// prop is new, probably deferred, lets mark it forced optional
 				forcedOptionals = append(forcedOptionals, k)
+				updated = true
 			}
 			propsForGen[k] = v
 		}
 	} else {
+		updated = true
 		for k, v := range props {
 			propsForGen[k] = v
 		}
+	}
+
+	if !updated {
+		// nothing new, let's skip!
+		return
 	}
 
 	g.optionalsCache[component] = forcedOptionals
@@ -57,17 +67,22 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) (err error) {
 
 	cName, err := typegen.FormatComponentName(component)
 	if err != nil {
-		return fmt.Errorf("formatting comp name: %w", err)
+		err = fmt.Errorf("formatting comp name: %w", err)
+		return
 	}
 
-	root, err := typegen.ParseMap(typegen.Ident(cName), propsForGen)
+	root, err := typegen.ParseMap(typegen.Ident(fmt.Sprintf("%sProps", cName)), propsForGen)
 	if err != nil {
-		return fmt.Errorf("parsing propmap: %w", err)
+		err = fmt.Errorf("parsing propmap: %w", err)
+		return
 	}
+
+	root.Name = inertiaPage.Component
+	root.PkgPath = "InertiaRender"
 
 	var newProps []typegen.TsType
 	for _, v := range root.Properties {
-		if slices.Contains(forcedOptionals, v.Name) {
+		if slices.Contains(forcedOptionals, v.PropertyName) {
 			v.Optional = true
 		}
 		newProps = append(newProps, v)
@@ -77,8 +92,7 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) (err error) {
 
 	err = typegen.GenerateTypeScriptForComponent(g.dirPath, root)
 	if err != nil {
-		return fmt.Errorf("generating typescript: %w", err)
+		err = fmt.Errorf("generating typescript: %w", err)
+		return
 	}
-
-	return nil
 }

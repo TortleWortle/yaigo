@@ -13,13 +13,16 @@ func GenerateTypeDef(parent TsType) string {
 	}
 	types := parent.Properties
 	var writer strings.Builder
+	if parent.PkgPath != "" && parent.Name != "" {
+		writer.WriteString(fmt.Sprintf("// from: %s/%s\n", parent.PkgPath, parent.Name))
+	}
 	if parent.export {
 		writer.WriteString("export ")
 	}
 	writer.WriteString(fmt.Sprintf("type %s = {\n", parent.Ident))
 	for _, v := range types {
 		writer.WriteString("\t")
-		writer.WriteString(v.Name)
+		writer.WriteString(v.PropertyName)
 		if v.Optional {
 			writer.WriteString("?")
 		}
@@ -42,7 +45,11 @@ func GenerateTypeDef(parent TsType) string {
 		} else {
 			writer.WriteString("never")
 		}
-		writer.WriteString(";\n")
+		writer.WriteString(";")
+		if v.Comment != "" {
+			writer.WriteString("// " + v.Comment)
+		}
+		writer.WriteString("\n")
 	}
 
 	writer.WriteString("}")
