@@ -19,37 +19,10 @@ const (
 	Primitive = iota
 	Struct
 	Map
+	Array
 )
 
-type TsType struct {
-	Type     string
-	Optional bool
-	Ident    string
-	Key      string
-	Children []TsType
-}
-
-func (t *TsType) MapKey() TsType {
-	if len(t.Children) != 2 || t.Type != TypeDict {
-		panic("Key can only be called on TypeDict")
-	}
-
-	return t.Children[0]
-}
-
-func (t *TsType) Elem() TsType {
-	if len(t.Children) == 2 && t.Type == TypeDict {
-		return t.Children[1]
-	}
-
-	if len(t.Children) == 1 && t.Type == TypeArray {
-		return t.Children[0]
-	}
-
-	panic("Elem can only be called on TypeArray or TypeDicts (children mismatch)")
-}
-
-var titleCaser = cases.Title(language.English)
+type Ident string
 
 const (
 	TypeString  = "string"
@@ -62,7 +35,45 @@ const (
 	TypeAny     = "any"
 )
 
-func getBasicTsType(v reflect.Type) string {
+func (i Ident) String() string {
+	return string(i)
+}
+
+type TsType struct {
+	Kind     string
+	Optional bool
+
+	// Identifier,
+	Ident Ident // same as Ident?
+
+	// Name of the property it's assigned to
+	Name       string
+	Properties []TsType
+}
+
+func (t *TsType) MapKey() TsType {
+	if len(t.Properties) != 2 || t.Kind != TypeDict {
+		panic("Name can only be called on TypeDict")
+	}
+
+	return t.Properties[0]
+}
+
+func (t *TsType) Elem() TsType {
+	if len(t.Properties) == 2 && t.Kind == TypeDict {
+		return t.Properties[1]
+	}
+
+	if len(t.Properties) == 1 && t.Kind == TypeArray {
+		return t.Properties[0]
+	}
+
+	panic("Elem can only be called on TypeArray or TypeDicts (children mismatch)")
+}
+
+var titleCaser = cases.Title(language.English)
+
+func getBasicTsType(v reflect.Type) Ident {
 	if v.ConvertibleTo(reflect.TypeFor[int]()) {
 		return TypeNumber
 	}
@@ -76,7 +87,7 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 	switch v.Kind() {
 	case reflect.Interface:
 		return TsType{
-			Type:  TypeAny,
+			Kind:  TypeAny,
 			Ident: TypeAny,
 		}, nil
 	case reflect.Map:
@@ -92,9 +103,9 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 			return t, fmt.Errorf("getting elem type: %w", err)
 		}
 		return TsType{
-			Type:     TypeDict,
-			Ident:    TypeDict,
-			Children: []TsType{keyType, elemType},
+			Kind:       TypeDict,
+			Ident:      TypeDict,
+			Properties: []TsType{keyType, elemType},
 		}, nil
 	case reflect.Pointer:
 		pt := v.Elem()
@@ -113,9 +124,9 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 			return t, fmt.Errorf("converting slice type: %w", err)
 		}
 		return TsType{
-			Type:     TypeArray,
-			Ident:    TypeArray,
-			Children: []TsType{et},
+			Kind:       TypeArray,
+			Ident:      TypeArray,
+			Properties: []TsType{et},
 		}, nil
 	case reflect.Struct:
 		children, err := ConvertStruct(v)
@@ -123,50 +134,45 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 			return t, err
 		}
 		return TsType{
-			Type:     TypeStruct,
-			Optional: false,
-			Ident:    fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(v.PkgPath())), v.Name()),
-			Children: children,
+			Kind:       TypeStruct,
+			Optional:   false,
+			Ident:      Ident(fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(v.PkgPath())), v.Name())),
+			Properties: children,
 		}, nil
 	default:
 		baseType := getBasicTsType(v)
 		return TsType{
-			Type:     baseType,
+			Kind:     baseType.String(),
 			Ident:    baseType,
 			Optional: false,
 		}, nil
 	}
 }
 
-func NewRootType(name string, properties []TsType) (TsType, error) {
-	typeName, err := FormatComponentName(name)
-	if err != nil {
-		return TsType{}, fmt.Errorf("formatting name: %w", err)
-	}
-
+func NewRootType(name Ident, properties []TsType) TsType {
 	return TsType{
-		Type:     TypeStruct,
-		Optional: false,
-		Ident:    typeName,
-		Key:      "",
-		Children: properties,
-	}, nil
+		Kind:       TypeStruct,
+		Optional:   false,
+		Ident:      name,
+		Name:       "",
+		Properties: properties,
+	}
 }
 
 func getTypeFromValue(key string, v any) (TsType, error) {
 	t := reflect.TypeOf(v)
 	if v == nil {
 		return TsType{
-			Type:     TypeNull,
+			Kind:     TypeNull,
 			Optional: false,
-			Key:      key,
+			Name:     key,
 		}, nil
 	}
 	tst, err := getTsType(t)
 	if err != nil {
 		return TsType{}, fmt.Errorf("gettype: %w", err)
 	}
-	tst.Key = key
+	tst.Name = key
 	return tst, nil
 }
 
@@ -192,7 +198,7 @@ func ConvertStruct(v reflect.Type) ([]TsType, error) {
 
 		jsonOptional := slices.Contains(strings.Split(jsonOpts, ","), "omitempty")
 		fieldType, err := getTsType(f.Type)
-		fieldType.Key = key
+		fieldType.Name = key
 		if err != nil {
 			return nil, fmt.Errorf("getting field type %s: %w", key, err)
 		}
@@ -211,15 +217,15 @@ func ConvertMap(props map[string]any) ([]TsType, error) {
 			return nil, fmt.Errorf("converting %s: %w", k, err)
 		}
 
-		if t.Type == TypeInvalid {
+		if t.Kind == TypeInvalid {
 			// invalid type found, skip for now
-			t.Type = "never"
+			t.Kind = "never"
 		}
 		types = append(types, t)
 	}
 
 	sort.Slice(types, func(i, j int) bool {
-		return strings.Map(unicode.ToUpper, types[i].Key) < strings.Map(unicode.ToUpper, types[j].Key)
+		return strings.Map(unicode.ToUpper, types[i].Name) < strings.Map(unicode.ToUpper, types[j].Name)
 	})
 	return types, nil
 }
@@ -233,38 +239,37 @@ func FormatComponentName(component string) (string, error) {
 	for _, part := range strings.Split(component, "/") {
 		componentName.WriteString(titleCaser.String(part))
 	}
-	componentName.WriteString("Props")
 
 	return componentName.String(), nil
 }
 
-type identCache = map[string][]TsType
+type identCache = map[Ident][]TsType
 
 func getTypeDefs(cache identCache, types []TsType) {
 	for _, v := range types {
-		if v.Type == TypeStruct {
+		if v.Kind == TypeStruct {
 			if _, ok := cache[v.Ident]; !ok {
-				cache[v.Ident] = v.Children
-				getTypeDefs(cache, v.Children)
+				cache[v.Ident] = v.Properties
+				getTypeDefs(cache, v.Properties)
 			}
 		}
 
-		if v.Type == TypeArray {
+		if v.Kind == TypeArray {
 			cv := v.Elem()
-			if cv.Type == TypeStruct {
+			if cv.Kind == TypeStruct {
 				if _, ok := cache[cv.Ident]; !ok {
-					cache[cv.Ident] = cv.Children
-					getTypeDefs(cache, cv.Children)
+					cache[cv.Ident] = cv.Properties
+					getTypeDefs(cache, cv.Properties)
 				}
 			}
 		}
 
-		if v.Type == TypeDict {
+		if v.Kind == TypeDict {
 			cv := v.Elem()
-			if cv.Type == TypeStruct {
+			if cv.Kind == TypeStruct {
 				if _, ok := cache[cv.Ident]; !ok {
-					cache[cv.Ident] = cv.Children
-					getTypeDefs(cache, cv.Children)
+					cache[cv.Ident] = cv.Properties
+					getTypeDefs(cache, cv.Properties)
 				}
 			}
 		}

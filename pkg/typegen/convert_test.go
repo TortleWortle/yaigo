@@ -73,10 +73,7 @@ func TestGenerateTypeDefs(t *testing.T) {
 		t.Error(err)
 	}
 
-	parent, err := typegen.NewRootType("Welcome/Index", types)
-	if err != nil {
-		t.Errorf("creating root type: %v", err)
-	}
+	parent := typegen.NewRootType("WelcomeIndexProps", types)
 
 	typeDefs := typegen.GenerateTypeDef(parent, true)
 

@@ -101,7 +101,7 @@ func (s *Server) RenderRequest(res *Request, w http.ResponseWriter, r *http.Requ
 		s.typeGenOptionalsCache[page] = forcedOptionals
 		s.typeGenPropCache[page] = propsForGen
 
-		err = typegen.GenerateTypeScript(s.typeGenFilePath, page, propsForGen, forcedOptionals)
+		err = typegen.GenerateTypeScriptForComponent(s.typeGenFilePath, page, propsForGen, forcedOptionals)
 		if err != nil {
 			return fmt.Errorf("typegen generation: %w", err)
 		}
