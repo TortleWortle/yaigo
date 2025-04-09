@@ -17,7 +17,7 @@ import (
 
 var jsonMarshalers = make(map[Ident]TsType)
 
-// RegisterJsonMarshaler Marshals the struct and converts it into a map[string]any and uses that to get the type information
+// RegisterJsonMarshaler Marshals the struct and converts it into a map[string] to generate type info
 func RegisterJsonMarshaler(val json.Marshaler) {
 	var err error
 	defer func() {
