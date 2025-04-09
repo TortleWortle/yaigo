@@ -68,12 +68,10 @@ var testProps = Props{
 var expectedOutput string
 
 func TestGenerateTypeDefs(t *testing.T) {
-	types, err := typegen.ConvertMap(testProps)
+	parent, err := typegen.ParseMap("WelcomeIndexProps", testProps)
 	if err != nil {
 		t.Error(err)
 	}
-
-	parent := typegen.NewRootType("WelcomeIndexProps", types)
 
 	typeDefs := typegen.GenerateTypeDef(parent, true)
 

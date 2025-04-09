@@ -17,7 +17,7 @@ type Kind uint
 
 const (
 	Primitive = iota
-	Struct
+	Object
 	Map
 	Array
 	Any
@@ -30,11 +30,8 @@ type Ident string
 const (
 	TypeString  = "string"
 	TypeNumber  = "number"
-	TypeArray   = "array"
 	TypeNull    = "null"
-	TypeInvalid = "invalid"
-	TypeStruct  = "struct"
-	TypeDict    = "dictionary"
+	TypeInvalid = "never"
 	TypeAny     = "any"
 )
 
@@ -42,14 +39,11 @@ func (i Ident) String() string {
 	return string(i)
 }
 
+// TsType describes a Go type as what it would be in a TypeScript type
 type TsType struct {
-	Kind     Kind
-	Optional bool
-
-	// Identifier,
-	Ident Ident // same as Ident?
-
-	// Name of the property it's assigned to
+	Kind       Kind
+	Optional   bool
+	Ident      Ident
 	Name       string
 	Properties []TsType
 }
@@ -89,10 +83,8 @@ func getBasicTsType(v reflect.Type) Ident {
 func getTsType(v reflect.Type) (t TsType, err error) {
 	switch v.Kind() {
 	case reflect.Interface:
-		return TsType{
-			Kind:  Any,
-			Ident: TypeAny,
-		}, nil
+		t.Kind = Any
+		t.Ident = TypeAny
 	case reflect.Map:
 		if !v.Key().ConvertibleTo(reflect.TypeFor[string]()) {
 			return t, errors.New("map key must be a string-able")
@@ -105,19 +97,16 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 		if err != nil {
 			return t, fmt.Errorf("getting elem type: %w", err)
 		}
-		return TsType{
-			Kind:       Map,
-			Ident:      TypeDict,
-			Properties: []TsType{keyType, elemType},
-		}, nil
+		t.Kind = Map
+		t.Properties = []TsType{keyType, elemType}
 	case reflect.Pointer:
-		pt := v.Elem()
-		t, err := getTsType(pt)
+		pe := v.Elem()
+		pt, err := getTsType(pe)
 		if err != nil {
 			return t, fmt.Errorf("converting pointer type: %w", err)
 		}
-		t.Optional = true
-		return t, nil
+		pt.Optional = true
+		t = pt
 	case reflect.Array:
 		fallthrough
 	case reflect.Slice:
@@ -126,35 +115,26 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 		if err != nil {
 			return t, fmt.Errorf("converting slice type: %w", err)
 		}
-		return TsType{
-			Kind:       Array,
-			Ident:      TypeArray,
-			Properties: []TsType{et},
-		}, nil
+
+		t.Kind = Array
+		t.Properties = []TsType{et}
 	case reflect.Struct:
-		children, err := ConvertStruct(v)
+		t, err = ParseStruct(v)
 		if err != nil {
 			return t, err
 		}
-		return TsType{
-			Kind:       Struct,
-			Optional:   false,
-			Ident:      Ident(fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(v.PkgPath())), v.Name())),
-			Properties: children,
-		}, nil
 	default:
 		baseType := getBasicTsType(v)
-		return TsType{
-			Kind:     Primitive,
-			Ident:    baseType,
-			Optional: false,
-		}, nil
+		t.Kind = Primitive
+		t.Ident = baseType
+		t.Optional = false
 	}
+	return t, nil
 }
 
-func NewRootType(name Ident, properties []TsType) TsType {
+func NewType(kind Kind, name Ident, properties []TsType) TsType {
 	return TsType{
-		Kind:       Struct,
+		Kind:       kind,
 		Optional:   false,
 		Ident:      name,
 		Name:       "",
@@ -180,9 +160,11 @@ func getTypeFromValue(key string, v any) (TsType, error) {
 	return tst, nil
 }
 
-func ConvertStruct(v reflect.Type) ([]TsType, error) {
+func ParseStruct(v reflect.Type) (TsType, error) {
 	if v.Kind() != reflect.Struct {
-		return nil, errors.New("value has to be a struct")
+		return TsType{
+			Kind: Invalid,
+		}, errors.New("value has to be a struct")
 	}
 
 	var types []TsType
@@ -204,34 +186,37 @@ func ConvertStruct(v reflect.Type) ([]TsType, error) {
 		fieldType, err := getTsType(f.Type)
 		fieldType.Name = key
 		if err != nil {
-			return nil, fmt.Errorf("getting field type %s: %w", key, err)
+			return TsType{
+				Kind: Invalid,
+			}, fmt.Errorf("getting field type %s: %w", key, err)
 		}
 		fieldType.Optional = fieldType.Optional || jsonOptional
 		types = append(types, fieldType)
 	}
 
-	return types, nil
+	root := NewType(Object, Ident(fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(v.PkgPath())), v.Name())), types)
+
+	return root, nil
 }
 
-func ConvertMap(props map[string]any) ([]TsType, error) {
+func ParseMap(ident Ident, props map[string]any) (TsType, error) {
 	var types []TsType
 	for k, v := range props {
 		t, err := getTypeFromValue(k, v)
 		if err != nil {
-			return nil, fmt.Errorf("converting %s: %w", k, err)
+			return TsType{Kind: Invalid}, fmt.Errorf("converting %s: %w", k, err)
 		}
 
-		if t.Kind == Invalid {
-			// invalid type found, skip for now
-			t.Ident = "never"
-		}
 		types = append(types, t)
 	}
 
 	sort.Slice(types, func(i, j int) bool {
 		return strings.Map(unicode.ToUpper, types[i].Name) < strings.Map(unicode.ToUpper, types[j].Name)
 	})
-	return types, nil
+
+	root := NewType(Object, ident, types)
+
+	return root, nil
 }
 
 func FormatComponentName(component string) (string, error) {
@@ -251,7 +236,7 @@ type identCache = map[Ident][]TsType
 
 func getTypeDefs(cache identCache, types []TsType) {
 	for _, v := range types {
-		if v.Kind == Struct {
+		if v.Kind == Object {
 			if _, ok := cache[v.Ident]; !ok {
 				cache[v.Ident] = v.Properties
 				getTypeDefs(cache, v.Properties)
@@ -260,7 +245,7 @@ func getTypeDefs(cache identCache, types []TsType) {
 
 		if v.Kind == Array {
 			cv := v.Elem()
-			if cv.Kind == Struct {
+			if cv.Kind == Object {
 				if _, ok := cache[cv.Ident]; !ok {
 					cache[cv.Ident] = cv.Properties
 					getTypeDefs(cache, cv.Properties)
@@ -270,7 +255,7 @@ func getTypeDefs(cache identCache, types []TsType) {
 
 		if v.Kind == Map {
 			cv := v.Elem()
-			if cv.Kind == Struct {
+			if cv.Kind == Object {
 				if _, ok := cache[cv.Ident]; !ok {
 					cache[cv.Ident] = cv.Properties
 					getTypeDefs(cache, cv.Properties)
