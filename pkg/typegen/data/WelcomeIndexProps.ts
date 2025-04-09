@@ -11,6 +11,7 @@ export type WelcomeIndexProps = {
 		[key: string]: DbGroup;
 	};
 	otherPkgStructSlice: DbUser[];
+	stringArray: string[];
 	stringProp: string;
 	stringSlice: string[];
 }

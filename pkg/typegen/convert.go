@@ -13,6 +13,14 @@ import (
 	"unicode"
 )
 
+type Kind uint
+
+const (
+	Primitive = iota
+	Struct
+	Map
+)
+
 type TsType struct {
 	Type     string
 	Optional bool
@@ -96,6 +104,8 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 		}
 		t.Optional = true
 		return t, nil
+	case reflect.Array:
+		fallthrough
 	case reflect.Slice:
 		pt := v.Elem()
 		et, err := getTsType(pt)
@@ -126,6 +136,21 @@ func getTsType(v reflect.Type) (t TsType, err error) {
 			Optional: false,
 		}, nil
 	}
+}
+
+func NewRootType(name string, properties []TsType) (TsType, error) {
+	typeName, err := FormatComponentName(name)
+	if err != nil {
+		return TsType{}, fmt.Errorf("formatting name: %w", err)
+	}
+
+	return TsType{
+		Type:     TypeStruct,
+		Optional: false,
+		Ident:    typeName,
+		Key:      "",
+		Children: properties,
+	}, nil
 }
 
 func getTypeFromValue(key string, v any) (TsType, error) {

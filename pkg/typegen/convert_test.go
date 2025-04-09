@@ -57,6 +57,7 @@ var testProps = Props{
 	"optInt":              &optInt,
 	"nilField":            nil,
 	"stringSlice":         []string{"hello", "there"},
+	"stringArray":         [2]string{"hi", "there"},
 	"optStringSlice":      &optSlice,
 	"basicStructSlice":    []BasicStruct{},
 	"otherPkgStructSlice": []db.User{},
@@ -72,7 +73,12 @@ func TestGenerateTypeDefs(t *testing.T) {
 		t.Error(err)
 	}
 
-	typeDefs := typegen.GenerateTypeDef("WelcomeIndexProps", types, true)
+	parent, err := typegen.NewRootType("Welcome/Index", types)
+	if err != nil {
+		t.Errorf("creating root type: %v", err)
+	}
+
+	typeDefs := typegen.GenerateTypeDef(parent, true)
 
 	if typeDefs != expectedOutput {
 		t.Errorf("output mismatch. got: \n%s\n expected:\n%s\n", typeDefs, expectedOutput)
