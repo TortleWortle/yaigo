@@ -15,6 +15,44 @@ import (
 	"unicode"
 )
 
+var jsonMarshalers = make(map[Ident]TsType)
+
+// RegisterJsonMarshaler Marshals the struct and converts it into a map[string]any and uses that to get the type information
+func RegisterJsonMarshaler(val json.Marshaler) {
+	var err error
+	defer func() {
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	typ := reflect.TypeOf(val)
+	data, err := json.Marshal(val)
+	if err != nil {
+		return
+	}
+	values := make(map[string]any)
+
+	err = json.Unmarshal(data, &values)
+	if err != nil {
+		return
+	}
+
+	ident := makeIdent(typ)
+
+	t, err := ParseMap(ident, values)
+	if err != nil {
+		return
+	}
+
+	_, ok := jsonMarshalers[ident]
+	if ok {
+		panic(fmt.Sprintf("%s already registered as JsonMarshaler", ident))
+	}
+
+	jsonMarshalers[ident] = t
+}
+
 type Kind uint
 
 const (
@@ -139,7 +177,7 @@ func getTsType(t reflect.Type) (out TsType, err error) {
 		if ok {
 			out.Kind = Primitive
 			out.Ident = TypeString
-			out.Comment = "implements encoding.TextMarshaler"
+			out.Comment = "implements encoding.TextMarshaler."
 			break
 		}
 		pt := t.Elem()
@@ -155,14 +193,19 @@ func getTsType(t reflect.Type) (out TsType, err error) {
 		if ok {
 			out.Kind = Primitive
 			out.Ident = TypeString
-			out.Comment = "implements encoding.TextMarshaler"
+			out.Comment = "implements encoding.TextMarshaler."
 			break
 		}
 		ok = t.Implements(reflect.TypeFor[json.Marshaler]())
 		if ok {
-			out.Kind = Primitive
-			out.Ident = TypeAny
-			out.Comment = "implements json.Marshaler"
+			goodType, ok := jsonMarshalers[makeIdent(t)]
+			if ok {
+				out = goodType
+			} else {
+				out.Kind = Primitive
+				out.Ident = TypeAny
+				out.Comment = "implements json.Marshaler, please register using typegen.RegisterJsonMarshaler()."
+			}
 			break
 		}
 		out, err = ParseStruct(t)
@@ -235,9 +278,13 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 		types = append(types, fieldType)
 	}
 
-	root := NewType(Object, Ident(fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(v.PkgPath())), v.Name())), types)
+	root := NewType(Object, makeIdent(v), types)
 
 	return root, nil
+}
+
+func makeIdent(t reflect.Type) Ident {
+	return Ident(fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(t.PkgPath())), t.Name()))
 }
 
 func ParseMap(ident Ident, props map[string]any) (TsType, error) {
