@@ -232,14 +232,14 @@ func FormatComponentName(component string) (string, error) {
 	return componentName.String(), nil
 }
 
-type identCache = map[Ident][]TsType
+type identCache = map[Ident]TsType
 
-func getTypeDefs(cache identCache, types []TsType) {
-	for _, v := range types {
+func getTypeDefs(cache identCache, types TsType) {
+	for _, v := range types.Properties {
 		if v.Kind == Object {
 			if _, ok := cache[v.Ident]; !ok {
-				cache[v.Ident] = v.Properties
-				getTypeDefs(cache, v.Properties)
+				cache[v.Ident] = v
+				getTypeDefs(cache, v)
 			}
 		}
 
@@ -247,8 +247,8 @@ func getTypeDefs(cache identCache, types []TsType) {
 			cv := v.Elem()
 			if cv.Kind == Object {
 				if _, ok := cache[cv.Ident]; !ok {
-					cache[cv.Ident] = cv.Properties
-					getTypeDefs(cache, cv.Properties)
+					cache[cv.Ident] = cv
+					getTypeDefs(cache, cv)
 				}
 			}
 		}
@@ -257,8 +257,8 @@ func getTypeDefs(cache identCache, types []TsType) {
 			cv := v.Elem()
 			if cv.Kind == Object {
 				if _, ok := cache[cv.Ident]; !ok {
-					cache[cv.Ident] = cv.Properties
-					getTypeDefs(cache, cv.Properties)
+					cache[cv.Ident] = cv
+					getTypeDefs(cache, cv)
 				}
 			}
 		}

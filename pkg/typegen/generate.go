@@ -75,14 +75,13 @@ func GenerateTypeScriptForComponent(typeDir string, component string, props map[
 	root.Properties = typesWithOptionals
 
 	typeDefCache := make(identCache)
-	typeDefCache[Ident(componentName)] = root.Properties
-	getTypeDefs(typeDefCache, root.Properties)
+	typeDefCache[Ident(componentName)] = root
+	getTypeDefs(typeDefCache, root)
 
 	// sort alphabetically
 	var typeDefs []TsType
-	for ident, subTypes := range typeDefCache {
-		typ := NewType(Object, ident, subTypes)
-		typeDefs = append(typeDefs, typ)
+	for _, subType := range typeDefCache {
+		typeDefs = append(typeDefs, subType)
 	}
 
 	sort.Slice(typeDefs, func(i, j int) bool {
