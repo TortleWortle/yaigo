@@ -23,6 +23,7 @@ func FlashError(w http.ResponseWriter, r *http.Request, newErrors FlashErrors) {
 			Expires:  time.Now().Add(time.Minute),
 			Secure:   true,
 			HttpOnly: true,
+			Path:     "/",
 		}
 	} else {
 		// we try if it fails, it fails
