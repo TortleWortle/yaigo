@@ -190,3 +190,15 @@ func (c *Ctx) Back(errs FlashErrors) error {
 	http.Redirect(c.responseWriter, c.httpRequest, c.httpRequest.Referer(), http.StatusSeeOther)
 	return nil
 }
+
+func (c *Ctx) FlashErrors(errs FlashErrors) {
+	if errs != nil {
+		errflash.FlashError(c.responseWriter, c.httpRequest, errs)
+	}
+}
+
+func (c *Ctx) FlashError(key string, value string) {
+	errflash.FlashError(c.responseWriter, c.httpRequest, FlashErrors{
+		key: value,
+	})
+}
