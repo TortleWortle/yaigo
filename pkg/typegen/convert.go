@@ -160,6 +160,7 @@ func getTsType(t reflect.Type) (out TsType, err error) {
 		if err != nil {
 			return out, fmt.Errorf("getting elem type: %w", err)
 		}
+		out.Optional = true
 		out.Kind = Map
 		out.Properties = []TsType{keyType, elemType}
 	case reflect.Pointer:

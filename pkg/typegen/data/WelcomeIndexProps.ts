@@ -7,7 +7,7 @@ export type WelcomeIndexProps = {
 	optInt?: number;
 	optString?: string;
 	optStringSlice?: string[];
-	otherPkgStructMap: {
+	otherPkgStructMap?: {
 		[key: string]: DbGroup;
 	};
 	otherPkgStructSlice: DbUser[];
