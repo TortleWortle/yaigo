@@ -143,13 +143,12 @@ func (c *Ctx) Status(status int) {
 
 // ClearHistory tells inertiajs to roll the cache encryption key.
 // This can be used to protect any sensitive information from being accessed after logout by using the back button.
-func (c *Ctx) ClearHistory() error {
+func (c *Ctx) ClearHistory() {
 	req, err := getRequest(c.httpRequest)
 	if err != nil {
-		return err
+		panic("ClearHistory: could not get *yaigo.Request from *http.Request context, is it wrapped in the middleware?")
 	}
 	req.ClearHistory()
-	return nil
 }
 
 const (
