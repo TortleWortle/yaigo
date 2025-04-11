@@ -162,10 +162,9 @@ func GetDependencies(t TsType) (deps []TsType) {
 func getTsType(t reflect.Type) (out TsType, err error) {
 	if t == nil {
 		return TsType{
-			Kind:         Primitive,
-			Ident:        TypeInvalid,
-			Optional:     false,
-			PropertyName: "this_is_a_bug",
+			Kind:     Primitive,
+			Ident:    TypeNull,
+			Optional: false,
 		}, nil
 	}
 
