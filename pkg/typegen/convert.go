@@ -62,7 +62,6 @@ const (
 	InlineObject
 	Map
 	Array
-	Any
 	Null
 )
 
@@ -159,7 +158,7 @@ func getTsType(t reflect.Type) (out TsType, err error) {
 	if t == nil {
 		return TsType{
 			Kind:         Primitive,
-			Ident:        TypeNull,
+			Ident:        TypeInvalid,
 			Optional:     false,
 			PropertyName: "this_is_a_bug",
 		}, nil
@@ -167,7 +166,7 @@ func getTsType(t reflect.Type) (out TsType, err error) {
 
 	switch t.Kind() {
 	case reflect.Interface:
-		out.Kind = Any
+		out.Kind = Primitive
 		out.Ident = TypeAny
 	case reflect.Map:
 		if !t.Key().ConvertibleTo(reflect.TypeFor[string]()) {
