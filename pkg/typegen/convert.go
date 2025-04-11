@@ -70,6 +70,7 @@ type Ident string
 const (
 	TypeString  = "string"
 	TypeNumber  = "number"
+	TypeBool    = "boolean"
 	TypeNull    = "null"
 	TypeInvalid = "never"
 	TypeAny     = "any"
@@ -131,6 +132,10 @@ func getBasicTsType(v reflect.Type) Ident {
 	if v.ConvertibleTo(reflect.TypeFor[string]()) {
 		return TypeString
 	}
+	if v.ConvertibleTo(reflect.TypeFor[bool]()) {
+		return TypeBool
+	}
+
 	return TypeInvalid
 }
 
@@ -167,7 +172,12 @@ func getTsType(t reflect.Type) (out TsType, err error) {
 	switch t.Kind() {
 	case reflect.Interface:
 		out.Kind = Primitive
-		out.Ident = TypeAny
+		ok := t.Implements(reflect.TypeFor[fmt.Stringer]())
+		if ok {
+			out.Ident = TypeString
+		} else {
+			out.Ident = TypeAny
+		}
 	case reflect.Map:
 		if !t.Key().ConvertibleTo(reflect.TypeFor[string]()) {
 			return out, errors.New("map key must be a string-able")
@@ -324,20 +334,21 @@ func makeIdent(t reflect.Type) Ident {
 	namePreGeneric, genericString, hasGeneric := strings.Cut(t.Name(), "[")
 	if hasGeneric {
 		name = namePreGeneric
-		parts := strings.Split(genericString[:len(genericString)-1], ".")
-		var genericName string
-		if len(parts) > 1 {
-			genericName = parts[len(parts)-1]
-		} else {
-			genericName = parts[0]
+		rawGenericNames := strings.Split(genericString[:len(genericString)-1], ",")
+
+		var genericNames []string
+		for _, n := range rawGenericNames {
+			parts := strings.Split(n, ".")
+			var genericName string
+			if len(parts) > 1 {
+				genericName = parts[len(parts)-1]
+			} else {
+				genericName = parts[0]
+			}
+			genericNames = append(genericNames, typeStrToTs(genericName))
 		}
 
-		for _, n := range strings.Split(genericName, ",") {
-			if strings.HasPrefix(n, "map[") {
-				panic("No maps in my generic >:(")
-			}
-			name += typeStrToTs(n)
-		}
+		name += strings.ReplaceAll(strings.Join(genericNames, ""), "*", "Opt")
 
 	}
 
