@@ -135,18 +135,24 @@ func getBasicTsType(v reflect.Type) Ident {
 	return TypeInvalid
 }
 
-// TODO: recurse into InlineObjects :)
-func GetDependencies(t TsType) (deps []TsType) {
-	cm := make(map[Ident]struct{})
+func getDependencies(cm map[Ident]struct{}, t TsType) (deps []TsType) {
 	for _, ct := range t.Properties {
 		if ct.Kind == Object {
 			if _, ok := cm[ct.Ident]; !ok {
 				deps = append(deps, ct)
 				cm[ct.Ident] = struct{}{}
 			}
+		} else if ct.Kind == InlineObject {
+			deps = append(deps, getDependencies(cm, ct)...)
 		}
 	}
+
 	return
+}
+
+func GetDependencies(t TsType) (deps []TsType) {
+	cm := make(map[Ident]struct{})
+	return getDependencies(cm, t)
 }
 
 func getTsType(t reflect.Type) (out TsType, err error) {
