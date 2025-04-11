@@ -344,7 +344,7 @@ func FormatComponentName(component string) (string, error) {
 
 func sortTypes(slice []TsType) {
 	sort.Slice(slice, func(i, j int) bool {
-		return strings.Map(unicode.ToUpper, slice[i].Ident.String()) < strings.Map(unicode.ToUpper, slice[j].Ident.String())
+		return strings.Map(unicode.ToUpper, slice[i].PropertyName) < strings.Map(unicode.ToUpper, slice[j].PropertyName)
 	})
 }
 
