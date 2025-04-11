@@ -307,12 +307,40 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 	}
 
 	root := NewType(t, makeIdent(v), types)
+	if strings.Contains(v.Name(), "[") {
+		name, _, _ := strings.Cut(strings.Split(v.Name(), "[")[1], "]")
+		parts := strings.Split(name, ".")
+		if len(parts) > 1 {
+			pkgPath := strings.Join(parts[:len(parts)-1], ".")
+			name = parts[len(parts)-1]
+			name = fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(pkgPath)), name)
+		}
+	}
 
 	return root, nil
 }
 
 func makeIdent(t reflect.Type) Ident {
-	return Ident(fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(t.PkgPath())), t.Name()))
+	name := t.Name()
+	namePreGeneric, genericString, hasGeneric := strings.Cut(t.Name(), "[")
+	if hasGeneric {
+		name = namePreGeneric
+		parts := strings.Split(genericString[:len(genericString)-1], ".")
+		var genericName string
+		if len(parts) > 1 {
+			genericName = parts[len(parts)-1]
+		} else {
+			genericName = typeStrToTs(parts[0])
+		}
+
+		if strings.HasPrefix(genericName, "map[") {
+			panic("No maps in my generic >:(")
+		}
+
+		name += genericName
+	}
+
+	return Ident(fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(t.PkgPath())), name))
 }
 
 func ParseMap(ident Ident, props map[string]any) (TsType, error) {

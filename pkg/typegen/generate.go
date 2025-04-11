@@ -11,6 +11,51 @@ func writeIndentation(writer *strings.Builder, indentation int) {
 	}
 }
 
+func typeStrToTs(in string) string {
+	switch in {
+	case "uint8":
+		fallthrough
+	case "uint16":
+		fallthrough
+	case "uint32":
+		fallthrough
+	case "uint64":
+		fallthrough
+	case "int8":
+		fallthrough
+	case "int16":
+		fallthrough
+	case "int32":
+		fallthrough
+	case "int64":
+		fallthrough
+	case "float32":
+		fallthrough
+	case "float64":
+		fallthrough
+	case "byte":
+		fallthrough
+	case "uint":
+		fallthrough
+	case "int":
+		return "Number"
+	case "bool":
+		return "Bool"
+	case "string":
+		return "String"
+	case "true":
+		return "True"
+	case "false":
+		return "False"
+	case "interface {}":
+		fallthrough
+	case "any":
+		return "Any"
+	default:
+		return in
+	}
+}
+
 // todo: add indentation
 func generateObjectDef(parent TsType, indentation int) string {
 	var writer strings.Builder
@@ -66,7 +111,8 @@ func GenerateTypeDef(parent TsType) string {
 	if parent.export {
 		writer.WriteString("export ")
 	}
-	writer.WriteString(fmt.Sprintf("type %s = ", parent.Ident))
+	writer.WriteString(fmt.Sprintf("type %s", parent.Ident))
+	writer.WriteString(" = ")
 	writer.WriteString(generateObjectDef(parent, 1))
 	writer.WriteString("\n")
 
