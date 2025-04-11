@@ -12,6 +12,7 @@ func writeIndentation(writer *strings.Builder, indentation int) {
 }
 
 func typeStrToTs(in string) string {
+	var out string
 	switch in {
 	case "uint8":
 		fallthrough
@@ -38,22 +39,26 @@ func typeStrToTs(in string) string {
 	case "uint":
 		fallthrough
 	case "int":
-		return "Number"
+		out = "number"
 	case "bool":
-		return "Bool"
+		out = "bool"
 	case "string":
-		return "String"
+		out = "string"
 	case "true":
-		return "True"
+		out = "true"
 	case "false":
-		return "False"
+		out = "false"
 	case "interface {}":
 		fallthrough
 	case "any":
-		return "Any"
+		out = "any"
 	default:
-		return in
+		out = in
 	}
+	if len(out) > 0 && strings.ToLower(string(out[0])) == string(out[0]) {
+		out = titleCaser.String(out)
+	}
+	return out
 }
 
 // todo: add indentation
