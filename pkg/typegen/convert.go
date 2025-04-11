@@ -56,13 +56,14 @@ func RegisterJsonMarshaler(val json.Marshaler) {
 type Kind uint
 
 const (
-	Primitive = iota
+	Invalid = iota
+	Primitive
 	Object
+	InlineObject
 	Map
 	Array
 	Any
 	Null
-	Invalid
 )
 
 type Ident string
@@ -134,6 +135,7 @@ func getBasicTsType(v reflect.Type) Ident {
 	return TypeInvalid
 }
 
+// TODO: recurse into InlineObjects :)
 func GetDependencies(t TsType) (deps []TsType) {
 	cm := make(map[Ident]struct{})
 	for _, ct := range t.Properties {
@@ -235,6 +237,7 @@ func getTsType(t reflect.Type) (out TsType, err error) {
 
 	out.PkgPath = t.PkgPath()
 	out.Name = t.Name()
+	sortTypes(out.Properties)
 	return out, nil
 }
 
@@ -292,7 +295,12 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 		types = append(types, fieldType)
 	}
 
-	root := NewType(Object, makeIdent(v), types)
+	var t Kind = Object
+	if v.Name() == "" {
+		t = InlineObject
+	}
+
+	root := NewType(t, makeIdent(v), types)
 
 	return root, nil
 }
@@ -334,6 +342,12 @@ func FormatComponentName(component string) (string, error) {
 	return componentName.String(), nil
 }
 
+func sortTypes(slice []TsType) {
+	sort.Slice(slice, func(i, j int) bool {
+		return strings.Map(unicode.ToUpper, slice[i].Ident.String()) < strings.Map(unicode.ToUpper, slice[j].Ident.String())
+	})
+}
+
 // ExtractTypeDefs extracts all type defs from the root and properties, sorted alphabetically.
 //
 // Includes the root definition
@@ -348,10 +362,7 @@ func ExtractTypeDefs(root TsType) []TsType {
 		sortedTypeDefs = append(sortedTypeDefs, subType)
 	}
 
-	// now they're sorted
-	sort.Slice(sortedTypeDefs, func(i, j int) bool {
-		return strings.Map(unicode.ToUpper, sortedTypeDefs[i].Ident.String()) < strings.Map(unicode.ToUpper, sortedTypeDefs[j].Ident.String())
-	})
+	sortTypes(sortedTypeDefs)
 
 	return sortedTypeDefs
 }

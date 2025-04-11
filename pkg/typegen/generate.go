@@ -5,19 +5,21 @@ import (
 	"strings"
 )
 
-func GenerateTypeDef(parent TsType) string {
-	if parent.Kind != Object {
-		panic("can only generate typedefs for objects")
+func writeIndentation(writer *strings.Builder, indentation int) {
+	for i := 0; i < indentation; i++ {
+		_, _ = writer.WriteString("\t")
 	}
-	types := parent.Properties
-	var writer strings.Builder
+}
 
-	if parent.export {
-		writer.WriteString("export ")
-	}
-	writer.WriteString(fmt.Sprintf("type %s = {\n", parent.Ident))
-	for _, v := range types {
-		writer.WriteString("\t")
+// todo: add indentation
+func generateObjectDef(parent TsType, indentation int) string {
+	var writer strings.Builder
+	writer.WriteString("{\n")
+	writeIndentation(&writer, indentation)
+	for i, v := range parent.Properties {
+		if i > 0 {
+			writeIndentation(&writer, indentation)
+		}
 		writer.WriteString(v.PropertyName)
 		if v.Optional {
 			writer.WriteString("?")
@@ -25,6 +27,8 @@ func GenerateTypeDef(parent TsType) string {
 		writer.WriteString(": ")
 		if v.Kind == Object {
 			writer.WriteString(v.Ident.String())
+		} else if v.Kind == InlineObject {
+			writer.WriteString(generateObjectDef(v, indentation+1))
 		} else if v.Kind == Array {
 			writer.WriteString(fmt.Sprintf("%s[]", v.Elem().Ident))
 		} else if v.Kind == Map {
@@ -41,14 +45,29 @@ func GenerateTypeDef(parent TsType) string {
 		} else {
 			writer.WriteString("never")
 		}
+
 		writer.WriteString(";")
 		if v.Comment != "" {
 			writer.WriteString("// " + v.Comment)
 		}
 		writer.WriteString("\n")
 	}
-
+	writeIndentation(&writer, indentation-1)
 	writer.WriteString("}")
+	return writer.String()
+}
+
+func GenerateTypeDef(parent TsType) string {
+	if parent.Kind != Object {
+		panic("can only generate typedefs for objects")
+	}
+	var writer strings.Builder
+
+	if parent.export {
+		writer.WriteString("export ")
+	}
+	writer.WriteString(fmt.Sprintf("type %s = ", parent.Ident))
+	writer.WriteString(generateObjectDef(parent, 1))
 	writer.WriteString("\n")
 
 	return writer.String()
