@@ -134,6 +134,19 @@ func getBasicTsType(v reflect.Type) Ident {
 	return TypeInvalid
 }
 
+func GetDependencies(t TsType) (deps []TsType) {
+	cm := make(map[Ident]struct{})
+	for _, ct := range t.Properties {
+		if ct.Kind == Object {
+			if _, ok := cm[ct.Ident]; !ok {
+				deps = append(deps, ct)
+				cm[ct.Ident] = struct{}{}
+			}
+		}
+	}
+	return
+}
+
 func getTsType(t reflect.Type) (out TsType, err error) {
 	if t == nil {
 		return TsType{

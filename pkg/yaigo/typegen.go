@@ -123,7 +123,7 @@ func GenerateTypeScriptForComponent(typeDir string, root typegen.TsType) error {
 		builder.WriteString("//   yaigo: v0.0.0\n")
 		builder.WriteString(fmt.Sprintf("// package: %s\n", td.PkgPath))
 		builder.WriteString(fmt.Sprintf("// name: %s\n", td.Name))
-		for _, std := range td.Properties {
+		for _, std := range typegen.GetDependencies(td) {
 			if std.Kind == typegen.Object {
 				builder.WriteString(fmt.Sprintf("import { type %s } from './%s'\n", std.Ident, std.Ident))
 			}
