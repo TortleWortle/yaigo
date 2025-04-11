@@ -330,14 +330,16 @@ func makeIdent(t reflect.Type) Ident {
 		if len(parts) > 1 {
 			genericName = parts[len(parts)-1]
 		} else {
-			genericName = typeStrToTs(parts[0])
+			genericName = parts[0]
 		}
 
-		if strings.HasPrefix(genericName, "map[") {
-			panic("No maps in my generic >:(")
+		for _, n := range strings.Split(genericName, ",") {
+			if strings.HasPrefix(n, "map[") {
+				panic("No maps in my generic >:(")
+			}
+			name += typeStrToTs(n)
 		}
 
-		name += genericName
 	}
 
 	return Ident(fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(t.PkgPath())), name))
