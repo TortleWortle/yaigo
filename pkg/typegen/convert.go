@@ -148,6 +148,21 @@ func getDependencies(cm map[Ident]struct{}, t TsType) (deps []TsType) {
 			}
 		} else if ct.Kind == InlineObject {
 			deps = append(deps, getDependencies(cm, ct)...)
+		} else if ct.Kind == Array {
+			elem := ct.Elem()
+			if elem.Kind != Primitive {
+				deps = append(deps, ct.Elem())
+			}
+		} else if ct.Kind == Map {
+			elem := ct.Elem()
+			if elem.Kind != Primitive {
+				deps = append(deps, elem)
+			}
+
+			key := ct.MapKey()
+			if key.Kind != Primitive {
+				deps = append(deps, key)
+			}
 		}
 	}
 
