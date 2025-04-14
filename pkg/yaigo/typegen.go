@@ -52,7 +52,7 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) {
 				// (so two pages using the same component won't provide different types
 				et := reflect.TypeOf(existingProp)
 				vt := reflect.TypeOf(v)
-				if et.Kind() != vt.Kind() {
+				if ((et == nil || vt == nil) && et != vt) || (et != nil && vt != nil && et.Kind() != vt.Kind()) {
 					panic(fmt.Sprintf("prop %s for %s has conflicting types: %v != %v", k, inertiaPage.Component, et.Name(), vt.Name()))
 				}
 			} else {
