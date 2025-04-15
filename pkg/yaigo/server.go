@@ -3,13 +3,12 @@ package yaigo
 import (
 	"errors"
 	"fmt"
+	"github.com/tortlewortle/yaigo/pkg/vite"
 	"html/template"
 	"io/fs"
 	"net/http"
 	"os"
 	"sync"
-
-	"github.com/tortlewortle/yaigo/internal/vite"
 )
 
 func NewServer(tfn func(*template.Template) (*template.Template, error), frontend fs.FS, optFns ...OptFunc) (*Server, error) {

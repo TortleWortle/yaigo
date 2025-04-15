@@ -2,11 +2,10 @@ package yaigo
 
 import (
 	"fmt"
+	"github.com/tortlewortle/yaigo/pkg/vite"
 	"html/template"
 	"net/url"
 	"strings"
-
-	"github.com/tortlewortle/yaigo/internal/vite"
 )
 
 type rootTmplData struct {
