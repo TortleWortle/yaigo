@@ -43,7 +43,7 @@ func generateRootTemplate(tfn func(*template.Template) (*template.Template, erro
 				return "", err
 			}
 			for _, sheetUrl := range item.Css {
-				tb.WriteString(fmt.Sprintf("<link rel=\"preload\" href=\"/%s\"> as=\"style\"/>\n", sheetUrl))
+				tb.WriteString(fmt.Sprintf("<link rel=\"preload\" href=\"/%s\" as=\"style\"/>\n", sheetUrl))
 			}
 			tb.WriteString("\n")
 			for _, sheetUrl := range item.Css {
