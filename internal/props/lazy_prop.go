@@ -1,6 +1,8 @@
 package props
 
-import "context"
+import (
+	"context"
+)
 
 type LazyProp struct {
 	group    string
@@ -8,6 +10,7 @@ type LazyProp struct {
 	sync     bool
 	deferred bool
 }
+
 type LazyPropFn = func(ctx context.Context) (any, error)
 
 func NewLazyProp(fn LazyPropFn, deferred, sync bool) *LazyProp {

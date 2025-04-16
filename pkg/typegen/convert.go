@@ -93,6 +93,9 @@ type TsType struct {
 
 	Comment string // Optional comment to list next to the file
 
+	// unsure about this value, but keeps track of two types that are mutually exclusive
+	Union []string
+
 	export bool
 }
 
@@ -297,6 +300,8 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 		}, errors.New("value has to be a struct")
 	}
 
+	var unions []string
+
 	var types []TsType
 
 	for i := 0; i < v.NumField(); i++ {
@@ -310,6 +315,11 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 		jsonName, jsonOpts, _ := strings.Cut(jsonTag, ",")
 		if jsonName != "" {
 			key = jsonName
+		}
+
+		orTag := f.Tag.Get("or")
+		if orTag != "" {
+			unions = []string{orTag, key}
 		}
 
 		jsonOptional := slices.Contains(strings.Split(jsonOpts, ","), "omitempty")
@@ -339,6 +349,8 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 			name = fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(pkgPath)), name)
 		}
 	}
+
+	root.Union = unions
 
 	return root, nil
 }

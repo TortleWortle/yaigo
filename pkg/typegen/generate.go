@@ -61,8 +61,7 @@ func typeStrToTs(in string) string {
 	return out
 }
 
-// todo: add indentation
-func generateObjectDef(parent TsType, indentation int) string {
+func generateObjectDef(parent TsType, indentation int, forceNull string) string {
 	var writer strings.Builder
 	writer.WriteString("{\n")
 	writeIndentation(&writer, indentation)
@@ -75,10 +74,12 @@ func generateObjectDef(parent TsType, indentation int) string {
 			writer.WriteString("?")
 		}
 		writer.WriteString(": ")
-		if v.Kind == Object {
+		if v.PropertyName == forceNull {
+			writer.WriteString(TypeNull)
+		} else if v.Kind == Object {
 			writer.WriteString(v.Ident.String())
 		} else if v.Kind == InlineObject {
-			writer.WriteString(generateObjectDef(v, indentation+1))
+			writer.WriteString(generateObjectDef(v, indentation+1, ""))
 		} else if v.Kind == Array {
 			writer.WriteString(fmt.Sprintf("%s[]", v.Elem().Ident))
 		} else if v.Kind == Map {
@@ -118,7 +119,14 @@ func GenerateTypeDef(parent TsType) string {
 	}
 	writer.WriteString(fmt.Sprintf("type %s", parent.Ident))
 	writer.WriteString(" = ")
-	writer.WriteString(generateObjectDef(parent, 1))
+	if len(parent.Union) == 2 {
+		// todo: instead of force-null copy the parent and change the type in there.
+		writer.WriteString(generateObjectDef(parent, 1, parent.Union[0]))
+		writer.WriteString(" | ")
+		writer.WriteString(generateObjectDef(parent, 1, parent.Union[1]))
+	} else {
+		writer.WriteString(generateObjectDef(parent, 1, ""))
+	}
 	writer.WriteString("\n")
 
 	return writer.String()
