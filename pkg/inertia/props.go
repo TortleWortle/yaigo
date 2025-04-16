@@ -53,17 +53,16 @@ func Defer[T any](fn func(ctx context.Context) PropValue[T]) *props.LazyProp {
 // PropOk returns an OK value
 func PropOk[T any](value T) PropValue[T] {
 	return PropValue[T]{
-		Data:  value,
-		Error: PropError{},
+		Data:  &value,
+		Error: nil,
 	}
 }
 
 // PropErr returns an Error value
 func PropErr[T any](reason, detail string) PropValue[T] {
-	var value T
 	return PropValue[T]{
-		Data: value,
-		Error: PropError{
+		Data: nil,
+		Error: &PropError{
 			Reason: reason,
 			Detail: detail,
 		},
@@ -71,8 +70,8 @@ func PropErr[T any](reason, detail string) PropValue[T] {
 }
 
 type PropValue[T any] struct {
-	Data  T         `json:"data" or:"error"`
-	Error PropError `json:"error"`
+	Data  *T         `json:"data" or:"error"`
+	Error *PropError `json:"error"`
 }
 
 type PropError struct {

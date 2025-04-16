@@ -2,6 +2,7 @@ package typegen
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -61,7 +62,7 @@ func typeStrToTs(in string) string {
 	return out
 }
 
-func generateObjectDef(parent TsType, indentation int, forceNull string) string {
+func generateObjectDef(parent TsType, indentation int) string {
 	var writer strings.Builder
 	writer.WriteString("{\n")
 	writeIndentation(&writer, indentation)
@@ -74,12 +75,10 @@ func generateObjectDef(parent TsType, indentation int, forceNull string) string 
 			writer.WriteString("?")
 		}
 		writer.WriteString(": ")
-		if v.PropertyName == forceNull {
-			writer.WriteString(TypeNull)
-		} else if v.Kind == Object {
+		if v.Kind == Object {
 			writer.WriteString(v.Ident.String())
 		} else if v.Kind == InlineObject {
-			writer.WriteString(generateObjectDef(v, indentation+1, ""))
+			writer.WriteString(generateObjectDef(v, indentation+1))
 		} else if v.Kind == Array {
 			writer.WriteString(fmt.Sprintf("%s[]", v.Elem().Ident))
 		} else if v.Kind == Map {
@@ -108,6 +107,44 @@ func generateObjectDef(parent TsType, indentation int, forceNull string) string 
 	return writer.String()
 }
 
+// nested union types is undefined behaviour
+func getUnionTypes(parent TsType) (TsType, TsType) {
+	first := parent
+	second := parent
+
+	firstProps := make([]TsType, len(parent.Properties))
+	secondProps := make([]TsType, len(parent.Properties))
+
+	for i, p := range parent.Properties {
+		index := slices.Index(parent.Union, p.PropertyName)
+		if index >= 0 {
+			p.Optional = false
+			if index == 0 {
+				p.Kind = Primitive
+				p.Ident = TypeNull
+			}
+		}
+		firstProps[i] = p
+	}
+
+	for i, p := range parent.Properties {
+		index := slices.Index(parent.Union, p.PropertyName)
+
+		if index >= 0 {
+			p.Optional = false
+		}
+		if index == 1 {
+			p.Kind = Primitive
+			p.Ident = TypeNull
+		}
+		secondProps[i] = p
+	}
+
+	first.Properties = firstProps
+	second.Properties = secondProps
+	return first, second
+}
+
 func GenerateTypeDef(parent TsType) string {
 	if parent.Kind != Object {
 		panic("can only generate typedefs for objects")
@@ -120,12 +157,12 @@ func GenerateTypeDef(parent TsType) string {
 	writer.WriteString(fmt.Sprintf("type %s", parent.Ident))
 	writer.WriteString(" = ")
 	if len(parent.Union) == 2 {
-		// todo: instead of force-null copy the parent and change the type in there.
-		writer.WriteString(generateObjectDef(parent, 1, parent.Union[0]))
+		one, two := getUnionTypes(parent)
+		writer.WriteString(generateObjectDef(one, 1))
 		writer.WriteString(" | ")
-		writer.WriteString(generateObjectDef(parent, 1, parent.Union[1]))
+		writer.WriteString(generateObjectDef(two, 1))
 	} else {
-		writer.WriteString(generateObjectDef(parent, 1, ""))
+		writer.WriteString(generateObjectDef(parent, 1))
 	}
 	writer.WriteString("\n")
 
