@@ -44,6 +44,7 @@ func Handler(handlerFunc HandlerFunc) http.HandlerFunc {
 		defer func() {
 			if rec := recover(); rec != nil {
 				if server.IsDevMode() {
+					w.Header().Set(yaigo.HeaderInertia, "false")
 					fmt.Fprintf(w, "<h1>Recovered from panic: %v</h1>\n<pre>%s</pre>", rec, debug.Stack())
 				} else {
 					DefaultErrHandler(w, r, err)
@@ -61,6 +62,7 @@ func Handler(handlerFunc HandlerFunc) http.HandlerFunc {
 		err = handlerFunc(c, r)
 		if err != nil {
 			if server.IsDevMode() {
+				w.Header().Set(yaigo.HeaderInertia, "false")
 				fmt.Fprintf(w, "<h1>inertia.Handler() returned err: %v</h1>\n<pre>%s</pre>", err, debug.Stack())
 			} else {
 				DefaultErrHandler(w, r, err)
