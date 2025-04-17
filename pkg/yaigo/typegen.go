@@ -1,10 +1,10 @@
 package yaigo
 
 import (
+	"errors"
 	"fmt"
 	"github.com/tortlewortle/yaigo/internal/page"
 	"github.com/tortlewortle/yaigo/pkg/typegen"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -20,14 +20,7 @@ type typeGenerator struct {
 	optionalsCache map[string][]string
 }
 
-func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) {
-	// little dirty but we don't really care about these errors beyond logging
-	var err error
-	defer func() {
-		if err != nil {
-			slog.Warn("typegen error", slog.Any("error", err))
-		}
-	}()
+func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) error {
 	component := inertiaPage.Component
 	props := inertiaPage.Props
 
@@ -52,8 +45,11 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) {
 				// (so two pages using the same component won't provide different types
 				et := reflect.TypeOf(existingProp)
 				vt := reflect.TypeOf(v)
-				if ((et == nil || vt == nil) && et != vt) || (et != nil && vt != nil && et.Kind() != vt.Kind()) {
-					panic(fmt.Sprintf("prop %s for %s has conflicting types: %v != %v", k, inertiaPage.Component, et.Name(), vt.Name()))
+				if (et == nil || vt == nil) && et != vt {
+					return errors.New(fmt.Sprintf("prop %s for %s has conflicting types.", k, inertiaPage.Component))
+				}
+				if et != nil && vt != nil && et.Kind() != vt.Kind() {
+					return errors.New(fmt.Sprintf("prop %s for %s has conflicting types: %v != %v", k, inertiaPage.Component, et.Name(), vt.Name()))
 				}
 			} else {
 				// prop is new, probably deferred, lets mark it forced optional
@@ -71,7 +67,7 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) {
 
 	if !updated {
 		// nothing new, let's skip!
-		return
+		return nil
 	}
 
 	g.optionalsCache[component] = forcedOptionals
@@ -79,14 +75,12 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) {
 
 	cName, err := typegen.FormatComponentName(component)
 	if err != nil {
-		err = fmt.Errorf("formatting comp name: %w", err)
-		return
+		return fmt.Errorf("formatting comp name: %w", err)
 	}
 
 	root, err := typegen.ParseMap(typegen.Ident(fmt.Sprintf("%sProps", cName)), propsForGen)
 	if err != nil {
-		err = fmt.Errorf("parsing propmap: %w", err)
-		return
+		return fmt.Errorf("parsing propmap: %w", err)
 	}
 
 	root.Name = inertiaPage.Component
@@ -104,9 +98,9 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) {
 
 	err = GenerateTypeScriptForComponent(g.dirPath, root)
 	if err != nil {
-		err = fmt.Errorf("generating typescript: %w", err)
-		return
+		return fmt.Errorf("generating typescript: %w", err)
 	}
+	return nil
 }
 
 func GenerateTypeScriptForComponent(typeDir string, root typegen.TsType) error {

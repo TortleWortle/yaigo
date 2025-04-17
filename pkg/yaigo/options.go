@@ -1,6 +1,7 @@
 package yaigo
 
 import (
+	"log/slog"
 	"time"
 )
 
@@ -10,6 +11,7 @@ type ServerOpts struct {
 	ReactRefresh  bool
 	SSRTimeout    time.Duration
 	TypeGenOutput string
+	Logger        *slog.Logger
 }
 
 type OptFunc = func(o *ServerOpts)
@@ -33,5 +35,11 @@ func WithSSR(url string, timeout time.Duration) OptFunc {
 func WithTypeGen(path string) OptFunc {
 	return func(o *ServerOpts) {
 		o.TypeGenOutput = path
+	}
+}
+
+func WithLogger(logger *slog.Logger) OptFunc {
+	return func(o *ServerOpts) {
+		o.Logger = logger
 	}
 }

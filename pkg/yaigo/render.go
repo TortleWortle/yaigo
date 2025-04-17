@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -70,7 +71,13 @@ func (s *Server) RenderRequest(res *Request, w http.ResponseWriter, r *http.Requ
 	data.DeferredProps = bag.GetDeferredProps()
 
 	if s.typeGen != nil {
-		go s.typeGen.Generate(data)
+		go func() {
+			err := s.typeGen.Generate(data)
+			if err != nil {
+				s.logger.Warn("typegen failed", slog.String("component", page), slog.Any("error", err))
+			}
+			s.logger.Info("generated types", slog.String("component", page))
+		}()
 	}
 
 	if hb.IsInertia() {

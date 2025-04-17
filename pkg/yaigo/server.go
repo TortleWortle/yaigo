@@ -6,6 +6,7 @@ import (
 	"github.com/tortlewortle/yaigo/pkg/vite"
 	"html/template"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"os"
 	"sync"
@@ -48,6 +49,10 @@ func NewServer(tfn func(*template.Template) (*template.Template, error), fronten
 	ssrTransport.MaxConnsPerHost = 100
 	ssrTransport.MaxIdleConnsPerHost = 100
 
+	if opts.Logger == nil {
+		opts.Logger = slog.Default()
+	}
+
 	server := &Server{
 		typeGen:         nil,
 		manifestVersion: version,
@@ -60,6 +65,7 @@ func NewServer(tfn func(*template.Template) (*template.Template, error), fronten
 
 		viteDevUrl:   opts.ViteUrl,
 		reactRefresh: opts.ReactRefresh,
+		logger:       opts.Logger,
 	}
 
 	if opts.TypeGenOutput != "" {
@@ -90,6 +96,7 @@ type Server struct {
 	reactRefresh bool
 	viteDevUrl   string
 	typeGen      *typeGenerator
+	logger       *slog.Logger
 }
 
 // These methods are on the Server struct just to keep the api nice and tidy

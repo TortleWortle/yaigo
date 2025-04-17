@@ -302,7 +302,7 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 
 	var unions []string
 
-	var types []TsType
+	types := make([]TsType, 0, v.NumField())
 
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
@@ -317,11 +317,6 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 			key = jsonName
 		}
 
-		orTag := f.Tag.Get("or")
-		if orTag != "" {
-			unions = []string{orTag, key}
-		}
-
 		jsonOptional := slices.Contains(strings.Split(jsonOpts, ","), "omitempty")
 		fieldType, err := getTsType(f.Type)
 		fieldType.PropertyName = key
@@ -330,8 +325,32 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 				Kind: Invalid,
 			}, fmt.Errorf("getting field type %s: %w", key, err)
 		}
-		fieldType.Optional = fieldType.Optional || jsonOptional
+		orTag := f.Tag.Get("or")
+		if orTag != "" {
+			unions = []string{orTag, key}
+		}
+
+		// only primitives work properly with omitempty
+		if jsonOptional && fieldType.Kind == Primitive {
+			fieldType.Optional = true
+		}
 		types = append(types, fieldType)
+	}
+
+	if len(unions) > 0 {
+		var unionFound bool
+		for _, t := range types {
+			if unions[0] == t.PropertyName {
+				unionFound = true
+			}
+			if slices.Contains(unions, t.PropertyName) && !t.Optional {
+				return TsType{}, errors.New("union types both tagged `or:\"field\"` and receiver must be optional (pointer, or omitempty for primitives)")
+
+			}
+		}
+		if !unionFound {
+			return TsType{}, errors.New(fmt.Sprintf("union target %q not found in %q", unions[0], v.Name()))
+		}
 	}
 
 	var t Kind = Object
