@@ -15,7 +15,7 @@ Since the client-side installation deviates a little bit from the normal setup s
 Client side usage and instructions can be read here: https://inertiajs.com/
 
 ## Basic usage
-These docs are yet incomplete and not the clearest, it is recommended to take a peep at the example folder or basic examples!
+These docs are inaccurate and outdated. New docs will be provided someday.
 ### Install
 `go get go.tortle.tech/go-inertia`
 
