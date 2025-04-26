@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -126,7 +124,9 @@ func (t *TsType) Elem() TsType {
 	panic("Elem can only be called on Array or Map (children mismatch)")
 }
 
-var titleCaser = cases.Title(language.English)
+func capitaliseFirstLetter(s string) string {
+	return strings.ToUpper(s[0:1]) + s[1:]
+}
 
 func getBasicTsType(v reflect.Type) Ident {
 	if v.ConvertibleTo(reflect.TypeFor[int]()) {
@@ -365,7 +365,7 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 		if len(parts) > 1 {
 			pkgPath := strings.Join(parts[:len(parts)-1], ".")
 			name = parts[len(parts)-1]
-			name = fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(pkgPath)), name)
+			name = fmt.Sprintf("%s%s", capitaliseFirstLetter(filepath.Base(pkgPath)), name)
 		}
 	}
 
@@ -397,7 +397,7 @@ func makeIdent(t reflect.Type) Ident {
 
 	}
 
-	return Ident(fmt.Sprintf("%s%s", titleCaser.String(filepath.Base(t.PkgPath())), name))
+	return Ident(fmt.Sprintf("%s%s", capitaliseFirstLetter(filepath.Base(t.PkgPath())), capitaliseFirstLetter(name)))
 }
 
 func ParseMap(ident Ident, props map[string]any) (TsType, error) {
@@ -427,7 +427,7 @@ func FormatComponentName(component string) (string, error) {
 
 	var componentName strings.Builder
 	for _, part := range strings.Split(component, "/") {
-		componentName.WriteString(titleCaser.String(part))
+		componentName.WriteString(capitaliseFirstLetter(part))
 	}
 
 	return componentName.String(), nil

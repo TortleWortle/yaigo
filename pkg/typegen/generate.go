@@ -57,7 +57,7 @@ func typeStrToTs(in string) string {
 		out = in
 	}
 	if len(out) > 0 && strings.ToLower(string(out[0])) == string(out[0]) {
-		out = titleCaser.String(out)
+		out = capitaliseFirstLetter(out)
 	}
 	return out
 }
