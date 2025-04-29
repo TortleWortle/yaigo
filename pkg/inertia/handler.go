@@ -128,7 +128,7 @@ func (c *Ctx) Error(cause error, status int, pageProps Props) error {
 	}
 
 	if c.yaigoServer.IsDevMode() {
-		fmt.Fprintf(c.responseWriter, "<h1>errorr: %v</h1>\n<pre>%s</pre>", cause, debug.Stack())
+		fmt.Fprintf(c.responseWriter, "<h1>Debug error</h1>\n<pre>%v</pre><pre>%s</pre>", cause, debug.Stack())
 		return nil
 	}
 
