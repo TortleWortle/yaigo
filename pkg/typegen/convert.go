@@ -228,6 +228,18 @@ func getTsType(t reflect.Type) (out TsType, err error) {
 			out.Comment = "implements encoding.TextMarshaler."
 			break
 		}
+		ok = t.Implements(reflect.TypeFor[json.Marshaler]())
+		if ok {
+			goodType, ok := jsonMarshalers[makeIdent(t)]
+			if ok {
+				out = goodType
+			} else {
+				out.Kind = Primitive
+				out.Ident = TypeAny
+				out.Comment = "implements json.Marshaler, please register using typegen.RegisterJsonMarshaler()."
+			}
+			break
+		}
 		pt := t.Elem()
 		et, err := getTsType(pt)
 		if err != nil {
@@ -236,6 +248,7 @@ func getTsType(t reflect.Type) (out TsType, err error) {
 
 		out.Kind = Array
 		out.Properties = []TsType{et}
+		out.Optional = true
 	case reflect.Struct:
 		ok := t.Implements(reflect.TypeFor[encoding.TextMarshaler]())
 		if ok {
