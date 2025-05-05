@@ -57,7 +57,7 @@ func (s *Server) RenderRequest(res *Request, w http.ResponseWriter, r *http.Requ
 	}
 
 	data.Component = page
-	data.Url = r.URL.Path
+	data.Url = r.RequestURI
 	data.Version = s.manifestVersion
 
 	if isPartial {
