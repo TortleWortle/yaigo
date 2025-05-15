@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/net/html"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -138,7 +139,8 @@ func (req *Request) renderHtml(s *Server, w http.ResponseWriter, data *page.Iner
 	if err != nil {
 		return err
 	}
-	inertiaRoot := template.HTML(fmt.Sprintf("<div id=\"app\" data-page='%s'></div>", propStr))
+
+	inertiaRoot := template.HTML(fmt.Sprintf("<div id=\"app\" data-page='%s'></div>", html.EscapeString(string(propStr))))
 	return s.rootTemplate.Execute(w, rootTmplData{
 		InertiaRoot: inertiaRoot,
 		InertiaHead: s.inertiaBaseHead(),
