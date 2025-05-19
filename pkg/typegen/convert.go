@@ -160,7 +160,10 @@ func getDependencies(cm map[Ident]struct{}, t TsType) (deps []TsType) {
 		} else if ct.Kind == Array {
 			elem := ct.Elem()
 			if elem.Kind != Primitive {
-				deps = append(deps, ct.Elem())
+				if _, ok := cm[ct.Elem().Ident]; !ok {
+					cm[ct.Elem().Ident] = struct{}{}
+					deps = append(deps, ct.Elem())
+				}
 			}
 		} else if ct.Kind == Map {
 			elem := ct.Elem()
