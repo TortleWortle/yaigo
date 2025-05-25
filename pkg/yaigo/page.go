@@ -73,9 +73,9 @@ func (p *Page) Render(ctx context.Context, w io.Writer) error {
 		go func() {
 			err := config.typeGen.Generate(pageData)
 			if err != nil {
-				slog.Warn("typegen failed", slog.String("component", p.component), slog.Any("error", err))
+				config.logger.Warn("typegen failed", slog.String("component", p.component), slog.Any("error", err))
 			}
-			slog.Info("generated types", slog.String("component", p.component))
+			config.logger.Info("generated types", slog.String("component", p.component))
 		}()
 	}
 

@@ -7,10 +7,6 @@ import (
 
 type Props map[string]any
 
-func NewDeferredProp(fn props.LazyPropFn, group string) *props.LazyProp {
-	return props.NewLazyProp(fn, true, true)
-}
-
 func SetProp(ctx context.Context, key string, value any) {
 	bag, ok := ctx.Value(bagKey).(*props.Bag)
 	if !ok {

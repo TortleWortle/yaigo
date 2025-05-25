@@ -30,21 +30,6 @@ func (ri *RequestInfo) IsPartial(page string) bool {
 	return ri.PartialComponentHeader == page
 }
 
-// todo: mark for deletion
-func newRequestInfo(r *http.Request) *RequestInfo {
-	h := r.Header
-	return &RequestInfo{
-		InertiaHeader:          h.Get(HeaderInertia),
-		ErrorBagHeader:         h.Get(HeaderErrorBag),
-		VersionHeader:          h.Get(HeaderVersion),
-		PartialComponentHeader: h.Get(HeaderPartialComponent),
-		PartialOnlyHeader:      h.Get(HeaderPartialOnly),
-		PartialExceptHeader:    h.Get(HeaderPartialExcept),
-		RequestURI:             r.RequestURI,
-		Method:                 r.Method,
-	}
-}
-
 func (ri *RequestInfo) Fill(r *http.Request) {
 	h := r.Header
 	ri.InertiaHeader = h.Get(HeaderInertia)

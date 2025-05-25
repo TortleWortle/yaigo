@@ -339,7 +339,7 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 			key = jsonName
 		}
 
-		jsonOptional := slices.Contains(strings.Split(jsonOpts, ","), "omitempty")
+		jsonOptional := slices.Contains(strings.Split(jsonOpts, ","), "omitempty") || slices.Contains(strings.Split(jsonOpts, ","), "omitzero")
 		fieldType, err := getTsType(f.Type)
 		fieldType.PropertyName = key
 		if err != nil {
