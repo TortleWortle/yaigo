@@ -36,7 +36,6 @@ func (p *Page) ClearHistory() {
 }
 
 func (p *Page) Render(ctx context.Context, w io.Writer) error {
-	fmt.Println("RENDERING", p.component)
 	config := ctx.Value(configKey).(*Config)
 	requestInfo := ctx.Value(requestInfoKey).(*RequestInfo)
 	var bag *props.Bag

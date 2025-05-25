@@ -22,8 +22,6 @@ type RequestInfo struct {
 	PartialComponentHeader string
 	PartialOnlyHeader      string
 	PartialExceptHeader    string
-	Method                 string
-	RequestURI             string
 }
 
 func (ri *RequestInfo) IsPartial(page string) bool {
@@ -38,8 +36,6 @@ func (ri *RequestInfo) Fill(r *http.Request) {
 	ri.PartialComponentHeader = h.Get(HeaderPartialComponent)
 	ri.PartialOnlyHeader = h.Get(HeaderPartialOnly)
 	ri.PartialExceptHeader = h.Get(HeaderPartialExcept)
-	ri.RequestURI = r.RequestURI
-	ri.Method = r.Method
 }
 
 func (ri *RequestInfo) Empty() {
@@ -49,12 +45,10 @@ func (ri *RequestInfo) Empty() {
 	ri.PartialComponentHeader = ""
 	ri.PartialOnlyHeader = ""
 	ri.PartialExceptHeader = ""
-	ri.RequestURI = ""
-	ri.Method = ""
 }
 
-// RedirectIfVersionConflict redirects the request if the manifest version is outdated on the client, returns true if it has been redirected
-func (ri *RequestInfo) RedirectIfVersionConflict(w http.ResponseWriter, version string) bool {
+// IsVersionConflict redirects the request if the manifest version is outdated on the client, returns true if it has been redirected
+func (ri *RequestInfo) IsVersionConflict(version string) bool {
 	if !ri.IsInertia() {
 		return false
 	}

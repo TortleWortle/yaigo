@@ -44,10 +44,12 @@ func Middleware(config *Config, opts ...func(*MiddlewareOpts)) func(http.Handler
 			info := infoPool.Get().(*RequestInfo)
 			info.Fill(r)
 
-			if info.RedirectIfVersionConflict(w, config.manifestVersion) {
+			if info.IsVersionConflict(config.manifestVersion) {
 				errflash.Reflash(w, r)
 				w.Header().Set(HeaderLocation, r.URL.String())
 				w.WriteHeader(http.StatusConflict)
+				info.Empty()
+				infoPool.Put(info)
 				return
 			}
 			bag := bagPool.Get().(*props.Bag)
