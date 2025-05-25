@@ -38,8 +38,13 @@ func (p *Page) ClearHistory() {
 func (p *Page) Render(ctx context.Context, w io.Writer) error {
 	fmt.Println("RENDERING", p.component)
 	config := ctx.Value(configKey).(*Config)
-	bag := ctx.Value(bagKey).(*props.Bag)
 	requestInfo := ctx.Value(requestInfoKey).(*RequestInfo)
+	var bag *props.Bag
+	if bagVal := ctx.Value(bagKey); bagVal != nil {
+		bag = bagVal.(*props.Bag)
+	} else {
+		bag = props.NewBag()
+	}
 	pageData := ctx.Value(pageDataKey).(*page.InertiaPage)
 	pageData.Component = p.component
 	pageData.ClearHistory = p.clearHistory
