@@ -202,7 +202,7 @@ func (b *Bag) Set(key string, value any) {
 	}
 }
 
-func (b *Bag) Clear() {
+func (b *Bag) Empty() {
 	for key := range b.props {
 		delete(b.props, key)
 	}

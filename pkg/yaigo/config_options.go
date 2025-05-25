@@ -24,7 +24,7 @@ func WithViteDevServer(url string, reactRefresh bool) OptFunc {
 	}
 }
 
-// WithSSR enables Server-side rendering using the provided ssr Server url and bundle bundlePath
+// WithSSR enables Config-side rendering using the provided ssr Config url and bundle bundlePath
 func WithSSR(url string, timeout time.Duration) OptFunc {
 	return func(o *ServerOpts) {
 		o.SSRServerUrl = url

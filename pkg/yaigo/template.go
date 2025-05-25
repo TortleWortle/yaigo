@@ -33,7 +33,7 @@ func generateRootTemplate(tfn func(*template.Template) (*template.Template, erro
 			return "/" + item.File, nil
 		},
 		"viteCSS": func(scriptUrl string) (template.HTML, error) {
-			// dev Server provides the css by itself
+			// dev Config provides the css by itself
 			if opts.ViteUrl != "" {
 				return "", nil
 			}

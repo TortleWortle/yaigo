@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-func NewServer(tfn func(*template.Template) (*template.Template, error), frontend fs.FS, optFns ...OptFunc) (*Server, error) {
+func New(tfn func(*template.Template) (*template.Template, error), frontend fs.FS, optFns ...OptFunc) (*Config, error) {
 	if tfn == nil {
 		return nil, errors.New("template can not be nil")
 	}
@@ -53,7 +53,7 @@ func NewServer(tfn func(*template.Template) (*template.Template, error), fronten
 		opts.Logger = slog.Default()
 	}
 
-	server := &Server{
+	server := &Config{
 		typeGen:         nil,
 		manifestVersion: version,
 		ssrHTTPClient: &http.Client{
@@ -85,7 +85,7 @@ func NewServer(tfn func(*template.Template) (*template.Template, error), fronten
 	return server, nil
 }
 
-type Server struct {
+type Config struct {
 	manifestVersion string
 
 	rootTemplate *template.Template
@@ -99,17 +99,6 @@ type Server struct {
 	logger       *slog.Logger
 }
 
-// These methods are on the Server struct just to keep the api nice and tidy
-
-func (*Server) Redirect(w http.ResponseWriter, r *http.Request, url string) {
-	http.Redirect(w, r, url, http.StatusSeeOther)
-}
-
-func (*Server) Location(w http.ResponseWriter, url string) {
-	w.Header().Set(headerLocation, url)
-	w.WriteHeader(http.StatusConflict)
-}
-
-func (s *Server) IsDevMode() bool {
+func (s *Config) IsDevMode() bool {
 	return s.viteDevUrl != ""
 }

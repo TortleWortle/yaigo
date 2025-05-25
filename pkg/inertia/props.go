@@ -4,17 +4,12 @@ import (
 	"context"
 	"github.com/tortlewortle/yaigo/internal/props"
 	"github.com/tortlewortle/yaigo/pkg/yaigo"
-	"net/http"
 )
 
 type Props = yaigo.Props
 
-func SetProp(r *http.Request, key string, value any) {
-	req, err := getRequest(r)
-	if err != nil {
-		panic("SetProp: could not get *yaigo.Request from *http.Request context, is it wrapped in the middleware?")
-	}
-	req.SetProp(key, value)
+func SetProp(ctx context.Context, key string, value any) {
+	yaigo.SetProp(ctx, key, value)
 }
 
 // Resolve wraps ResolveProp with a prop helper

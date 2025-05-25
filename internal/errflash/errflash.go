@@ -25,7 +25,7 @@ func FlashError(w http.ResponseWriter, r *http.Request, newErrors FlashErrors) {
 			HttpOnly: true,
 			Path:     "/",
 		}
-		// Safari does not make an exception for localhost and secure cookies so we set it as insecure on localhost
+		// Safari does not make an exception for localhost and secure cookies, so we set it as insecure on localhost
 		if r.Host == "localhost" {
 			c.Secure = false
 		}
