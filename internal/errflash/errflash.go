@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -26,7 +27,7 @@ func FlashError(w http.ResponseWriter, r *http.Request, newErrors FlashErrors) {
 			Path:     "/",
 		}
 		// Safari does not make an exception for localhost and secure cookies, so we set it as insecure on localhost
-		if r.Host == "localhost" {
+		if strings.HasPrefix(r.Host, "127.0.0.1") || strings.HasPrefix(r.Host, "localhost") {
 			c.Secure = false
 		}
 	} else {

@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func NewPage(component string, props Props) *Page {
@@ -35,6 +36,7 @@ func (p *Page) ClearHistory() {
 }
 
 func (p *Page) Render(ctx context.Context, w io.Writer) error {
+	fmt.Println("RENDERING", p.component)
 	config := ctx.Value(configKey).(*Config)
 	bag := ctx.Value(bagKey).(*props.Bag)
 	requestInfo := ctx.Value(requestInfoKey).(*RequestInfo)
@@ -70,13 +72,12 @@ func (p *Page) Render(ctx context.Context, w io.Writer) error {
 
 	// todo: maybe move away?
 	if config.typeGen != nil {
-		go func() {
-			err := config.typeGen.Generate(pageData)
-			if err != nil {
-				config.logger.Warn("typegen failed", slog.String("component", p.component), slog.Any("error", err))
-			}
-			config.logger.Info("generated types", slog.String("component", p.component))
-		}()
+		start := time.Now()
+		err := config.typeGen.Generate(pageData)
+		if err != nil {
+			config.logger.Warn("typegen failed", slog.String("component", p.component), slog.Any("error", err))
+		}
+		config.logger.Info("generated types", slog.String("component", p.component), slog.Duration("duration", time.Since(start)))
 	}
 
 	if requestInfo.IsInertia() {
@@ -171,14 +172,14 @@ func (p *Page) renderSSR(config *Config, w io.Writer, data *page.InertiaPage) er
 	})
 }
 
-func (s *Page) inertiaBaseHead(config *Config) template.HTML {
+func (p *Page) inertiaBaseHead(config *Config) template.HTML {
 	if config.reactRefresh {
-		return s.reactRefreshScript(config, nil)
+		return p.reactRefreshScript(config, nil)
 	}
 	return ""
 }
 
-func (s *Page) reactRefreshScript(config *Config, attrs []template.HTMLAttr) template.HTML {
+func (p *Page) reactRefreshScript(config *Config, attrs []template.HTMLAttr) template.HTML {
 	var attributes string
 	if attrs != nil {
 		var attrBuilder strings.Builder
