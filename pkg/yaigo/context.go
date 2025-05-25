@@ -3,7 +3,7 @@ package yaigo
 import (
 	"context"
 	"github.com/tortlewortle/yaigo/internal/page"
-	"github.com/tortlewortle/yaigo/internal/props"
+	"github.com/tortlewortle/yaigo/pkg/prop"
 )
 
 type contextKey int
@@ -26,7 +26,7 @@ func WithRequestInfo(ctx context.Context, info *RequestInfo) context.Context {
 }
 
 // WithPropBag provides a prop bag to keep props set between middlewares
-func WithPropBag(ctx context.Context, bag *props.Bag) context.Context {
+func WithPropBag(ctx context.Context, bag *prop.Bag) context.Context {
 	return context.WithValue(ctx, bagKey, bag)
 }
 

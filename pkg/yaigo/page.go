@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/tortlewortle/yaigo/internal/page"
-	"github.com/tortlewortle/yaigo/internal/props"
+	"github.com/tortlewortle/yaigo/pkg/prop"
 	"golang.org/x/net/html"
 	"html/template"
 	"io"
@@ -38,11 +38,11 @@ func (p *Page) ClearHistory() {
 func (p *Page) Render(ctx context.Context, w io.Writer) error {
 	config := ctx.Value(configKey).(*Config)
 	requestInfo := ctx.Value(requestInfoKey).(*RequestInfo)
-	var bag *props.Bag
+	var bag *prop.Bag
 	if bagVal := ctx.Value(bagKey); bagVal != nil {
-		bag = bagVal.(*props.Bag)
+		bag = bagVal.(*prop.Bag)
 	} else {
-		bag = props.NewBag()
+		bag = prop.NewBag()
 	}
 	pageData := ctx.Value(pageDataKey).(*page.InertiaPage)
 	pageData.Component = p.component

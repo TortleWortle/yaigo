@@ -3,7 +3,7 @@ package yaigo
 import (
 	"github.com/tortlewortle/yaigo/internal/errflash"
 	"github.com/tortlewortle/yaigo/internal/page"
-	"github.com/tortlewortle/yaigo/internal/props"
+	"github.com/tortlewortle/yaigo/pkg/prop"
 	"net/http"
 	"sync"
 )
@@ -26,7 +26,7 @@ func Middleware(config *Config, opts ...func(*MiddlewareOpts)) func(http.Handler
 	}
 	bagPool := sync.Pool{
 		New: func() interface{} {
-			return props.NewBag()
+			return prop.NewBag()
 		},
 	}
 	infoPool := sync.Pool{
@@ -52,7 +52,7 @@ func Middleware(config *Config, opts ...func(*MiddlewareOpts)) func(http.Handler
 				infoPool.Put(info)
 				return
 			}
-			bag := bagPool.Get().(*props.Bag)
+			bag := bagPool.Get().(*prop.Bag)
 			pageData := inertiaPagePool.Get().(*page.InertiaPage)
 
 			pageData.Version = config.manifestVersion
