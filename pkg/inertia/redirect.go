@@ -2,19 +2,9 @@ package inertia
 
 import (
 	"github.com/tortlewortle/yaigo/internal/errflash"
+	"github.com/tortlewortle/yaigo/pkg/yaigo"
 	"net/http"
 )
-
-const (
-	headerLocation = "X-Inertia-Location"
-)
-
-func PageHandler(component string, props Props) http.HandlerFunc {
-	page := Page(component, props)
-	return func(w http.ResponseWriter, r *http.Request) {
-		_ = page.Render(r.Context(), w)
-	}
-}
 
 // Redirect instructs inertia to redirect properly using http.StatusSeeOther
 func Redirect(w http.ResponseWriter, r *http.Request, url string) {
@@ -23,7 +13,7 @@ func Redirect(w http.ResponseWriter, r *http.Request, url string) {
 
 // Location redirects to external urls
 func Location(w http.ResponseWriter, r *http.Request, url string) {
-	w.Header().Set(headerLocation, url)
+	w.Header().Set(yaigo.HeaderLocation, url)
 	w.WriteHeader(http.StatusConflict)
 }
 
