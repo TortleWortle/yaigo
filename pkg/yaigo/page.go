@@ -36,6 +36,13 @@ func (p *Page) ClearHistory() *Page {
 	return p
 }
 
+func (p *Page) MustRender(ctx context.Context, w io.Writer) {
+	err := p.Render(ctx, w)
+	if err != nil {
+		panic(fmt.Errorf("rendering %s: %v", p.component, err))
+	}
+}
+
 func (p *Page) Render(ctx context.Context, w io.Writer) error {
 	config := ctx.Value(configKey).(*Config)
 	requestInfo := ctx.Value(requestInfoKey).(*RequestInfo)
