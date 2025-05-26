@@ -31,8 +31,9 @@ type Page struct {
 	clearHistory bool
 }
 
-func (p *Page) ClearHistory() {
+func (p *Page) ClearHistory() *Page {
 	p.clearHistory = true
+	return p
 }
 
 func (p *Page) Render(ctx context.Context, w io.Writer) error {
