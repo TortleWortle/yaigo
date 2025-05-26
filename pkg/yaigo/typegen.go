@@ -1,7 +1,6 @@
 package yaigo
 
 import (
-	"errors"
 	"fmt"
 	"github.com/tortlewortle/yaigo/internal/page"
 	"github.com/tortlewortle/yaigo/pkg/typegen"
@@ -46,10 +45,10 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) error {
 				et := reflect.TypeOf(existingProp)
 				vt := reflect.TypeOf(v)
 				if (et == nil || vt == nil) && et != vt {
-					return errors.New(fmt.Sprintf("prop %s for %s has conflicting types.", k, inertiaPage.Component))
+					return fmt.Errorf("prop %s for %s has conflicting types", k, inertiaPage.Component)
 				}
 				if et != nil && vt != nil && et.Kind() != vt.Kind() {
-					return errors.New(fmt.Sprintf("prop %s for %s has conflicting types: %v != %v", k, inertiaPage.Component, et.Name(), vt.Name()))
+					return fmt.Errorf("prop %s for %s has conflicting types: %v != %v", k, inertiaPage.Component, et.Name(), vt.Name())
 				}
 			} else {
 				// prop is new, probably deferred, lets mark it forced optional
@@ -107,7 +106,7 @@ func GenerateTypeScriptForComponent(typeDir string, root typegen.TsType) error {
 	typeDefs := typegen.ExtractTypeDefs(root)
 
 	for _, td := range typeDefs {
-		f, err := os.OpenFile(filepath.Join(typeDir, fmt.Sprintf("%s.ts", td.Ident)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
+		f, err := os.OpenFile(filepath.Join(typeDir, fmt.Sprintf("%s.gen.ts", td.Ident)), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 		if err != nil {
 			return fmt.Errorf("typegen file: %w", err)
 		}
@@ -119,7 +118,7 @@ func GenerateTypeScriptForComponent(typeDir string, root typegen.TsType) error {
 		builder.WriteString(fmt.Sprintf("// name: %s\n", td.Name))
 		for _, std := range typegen.GetDependencies(td) {
 			if std.Kind == typegen.Object {
-				builder.WriteString(fmt.Sprintf("import { type %s } from './%s'\n", std.Ident, std.Ident))
+				builder.WriteString(fmt.Sprintf("import { type %s } from './%s.gen'\n", std.Ident, std.Ident))
 			}
 		}
 
@@ -128,10 +127,10 @@ func GenerateTypeScriptForComponent(typeDir string, root typegen.TsType) error {
 		builder.WriteString(typegen.GenerateTypeDef(td))
 		_, err = f.Write([]byte(builder.String()))
 		if err != nil {
-			f.Close()
+			_ = f.Close()
 			return fmt.Errorf("writing file: %w", err)
 		}
-		f.Close()
+		_ = f.Close()
 	}
 
 	return nil

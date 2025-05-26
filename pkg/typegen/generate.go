@@ -8,7 +8,7 @@ import (
 
 func writeIndentation(writer *strings.Builder, indentation int) {
 	for i := 0; i < indentation; i++ {
-		_, _ = writer.WriteString("\t")
+		_, _ = writer.WriteString("    ")
 	}
 }
 
@@ -75,24 +75,27 @@ func generateObjectDef(parent TsType, indentation int) string {
 			writer.WriteString("?")
 		}
 		writer.WriteString(": ")
-		if v.Kind == Object {
+		switch v.Kind {
+		case Object:
 			writer.WriteString(v.Ident.String())
-		} else if v.Kind == InlineObject {
-			writer.WriteString(generateObjectDef(v, indentation+1))
-		} else if v.Kind == Array {
+		case InlineObject:
+			writer.WriteString(generateObjectDef(v, indentation))
+		case Array:
 			writer.WriteString(fmt.Sprintf("%s[]", v.Elem().Ident))
-		} else if v.Kind == Map {
+		case Map:
 			writer.WriteString("{\n")
-			writer.WriteString(fmt.Sprintf("\t\t[key: %s]: ", v.MapKey().Ident))
+			writeIndentation(&writer, indentation+1)
+			writer.WriteString(fmt.Sprintf("[key: %s]: ", v.MapKey().Ident))
 			writer.WriteString(v.Elem().Ident.String())
 			if v.Elem().Optional {
 				writer.WriteString(" | null")
 			}
 			writer.WriteString(";\n")
-			writer.WriteString("\t}")
-		} else if v.Kind == Primitive {
+			writeIndentation(&writer, indentation)
+			writer.WriteString("}")
+		case Primitive:
 			writer.WriteString(v.Ident.String())
-		} else {
+		default:
 			writer.WriteString("never")
 		}
 

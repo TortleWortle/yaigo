@@ -55,7 +55,7 @@ func Err[T any](message string, cause error) Result[T] {
 	}
 	return Result[T]{
 		Data: nil,
-		Error: &PropError{
+		Error: &Error{
 			Message: message,
 			Cause:   causeMsg,
 		},
@@ -63,11 +63,11 @@ func Err[T any](message string, cause error) Result[T] {
 }
 
 type Result[T any] struct {
-	Data  *T         `json:"data" or:"error"`
-	Error *PropError `json:"error"`
+	Data  *T     `json:"data" or:"error"`
+	Error *Error `json:"error"`
 }
 
-type PropError struct {
+type Error struct {
 	Message string `json:"message"`
 	Cause   string `json:"cause"`
 }

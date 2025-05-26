@@ -157,7 +157,9 @@ func (p *Page) renderSSR(config *Config, w io.Writer, data *page.InertiaPage) er
 	if err != nil {
 		return errors.Join(errCommunicatingWithSSRServer, err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	var ssrRes ssrResponse
 	err = json.NewDecoder(resp.Body).Decode(&ssrRes)

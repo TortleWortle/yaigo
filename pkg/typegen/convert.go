@@ -150,14 +150,15 @@ func getBasicTsType(v reflect.Type) Ident {
 
 func getDependencies(cm map[Ident]struct{}, t TsType) (deps []TsType) {
 	for _, ct := range t.Properties {
-		if ct.Kind == Object {
+		switch ct.Kind {
+		case Object:
 			if _, ok := cm[ct.Ident]; !ok {
 				deps = append(deps, ct)
 				cm[ct.Ident] = struct{}{}
 			}
-		} else if ct.Kind == InlineObject {
+		case InlineObject:
 			deps = append(deps, getDependencies(cm, ct)...)
-		} else if ct.Kind == Array {
+		case Array:
 			elem := ct.Elem()
 			if elem.Kind != Primitive {
 				if _, ok := cm[ct.Elem().Ident]; !ok {
@@ -165,16 +166,17 @@ func getDependencies(cm map[Ident]struct{}, t TsType) (deps []TsType) {
 					deps = append(deps, ct.Elem())
 				}
 			}
-		} else if ct.Kind == Map {
+		case Map:
 			elem := ct.Elem()
 			if elem.Kind != Primitive {
 				deps = append(deps, elem)
 			}
-
 			key := ct.MapKey()
 			if key.Kind != Primitive {
 				deps = append(deps, key)
 			}
+		default:
+			continue
 		}
 	}
 
@@ -371,7 +373,7 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 			}
 		}
 		if !unionFound {
-			return TsType{}, errors.New(fmt.Sprintf("union target %q not found in %q", unions[0], v.Name()))
+			return TsType{}, fmt.Errorf("union target %q not found in %q", unions[0], v.Name())
 		}
 	}
 
@@ -381,15 +383,6 @@ func ParseStruct(v reflect.Type) (TsType, error) {
 	}
 
 	root := NewType(t, makeIdent(v), types)
-	if strings.Contains(v.Name(), "[") {
-		name, _, _ := strings.Cut(strings.Split(v.Name(), "[")[1], "]")
-		parts := strings.Split(name, ".")
-		if len(parts) > 1 {
-			pkgPath := strings.Join(parts[:len(parts)-1], ".")
-			name = parts[len(parts)-1]
-			name = fmt.Sprintf("%s%s", capitaliseFirstLetter(filepath.Base(pkgPath)), name)
-		}
-	}
 
 	root.Union = unions
 
