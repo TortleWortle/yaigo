@@ -6,12 +6,12 @@ import (
 )
 
 type ServerOpts struct {
-	ViteUrl       string
-	SSRServerUrl  string
-	ReactRefresh  bool
-	SSRTimeout    time.Duration
-	TypeGenOutput string
-	Logger        *slog.Logger
+	ViteUrl      string
+	SSRServerUrl string
+	ReactRefresh bool
+	SSRTimeout   time.Duration
+	TypeGen      *TypeGenerator
+	Logger       *slog.Logger
 }
 
 type OptFunc = func(o *ServerOpts)
@@ -32,9 +32,9 @@ func WithSSR(url string, timeout time.Duration) OptFunc {
 	}
 }
 
-func WithTypeGen(path string) OptFunc {
+func WithTypeGen(gen *TypeGenerator) OptFunc {
 	return func(o *ServerOpts) {
-		o.TypeGenOutput = path
+		o.TypeGen = gen
 	}
 }
 

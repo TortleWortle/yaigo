@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"sync"
 )
 
 func New(tfn func(*template.Template) (*template.Template, error), frontend fs.FS, optFns ...OptFunc) (*Config, error) {
@@ -54,7 +53,7 @@ func New(tfn func(*template.Template) (*template.Template, error), frontend fs.F
 	}
 
 	server := &Config{
-		typeGen:         nil,
+		typeGenerator:   nil,
 		manifestVersion: version,
 		ssrHTTPClient: &http.Client{
 			Timeout:   opts.SSRTimeout,
@@ -68,18 +67,13 @@ func New(tfn func(*template.Template) (*template.Template, error), frontend fs.F
 		logger:       opts.Logger,
 	}
 
-	if opts.TypeGenOutput != "" {
-		err := os.MkdirAll(opts.TypeGenOutput, 0700)
+	if opts.TypeGen != nil {
+		err := os.MkdirAll(opts.TypeGen.dirPath, 0700)
 		if err != nil {
 			return nil, fmt.Errorf("creating typegen output folder: %w", err)
 		}
 
-		server.typeGen = &typeGenerator{
-			dirPath:        opts.TypeGenOutput,
-			lock:           &sync.Mutex{},
-			propCache:      make(map[string]Props),
-			optionalsCache: make(map[string][]string),
-		}
+		server.typeGenerator = opts.TypeGen
 	}
 
 	return server, nil
@@ -93,10 +87,10 @@ type Config struct {
 	ssrHTTPClient *http.Client
 	ssrURL        string
 
-	reactRefresh bool
-	viteDevUrl   string
-	typeGen      *typeGenerator
-	logger       *slog.Logger
+	reactRefresh  bool
+	viteDevUrl    string
+	typeGenerator *TypeGenerator
+	logger        *slog.Logger
 }
 
 func (s *Config) IsDevMode() bool {

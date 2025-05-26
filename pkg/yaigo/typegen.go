@@ -1,8 +1,11 @@
 package yaigo
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/tortlewortle/yaigo/internal/page"
+	"github.com/tortlewortle/yaigo/pkg/prop"
 	"github.com/tortlewortle/yaigo/pkg/typegen"
 	"os"
 	"path/filepath"
@@ -12,14 +15,57 @@ import (
 	"sync"
 )
 
-type typeGenerator struct {
+func NewTypeGenerator(outDir string) *TypeGenerator {
+	return &TypeGenerator{
+		dirPath:        outDir,
+		lock:           &sync.Mutex{},
+		propCache:      make(map[string]Props),
+		optionalsCache: make(map[string][]string),
+	}
+}
+
+type TypeGenerator struct {
 	dirPath        string
 	lock           *sync.Mutex
 	propCache      map[string]Props
 	optionalsCache map[string][]string
 }
 
-func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) error {
+func GeneratePropTypes(ctx context.Context, typename string) error {
+	config := ctx.Value(configKey).(*Config)
+	if config == nil {
+		return errors.New("config is nil, please use the yaigo middleware before calling this function")
+	}
+	if config.typeGenerator != nil {
+		bag := ctx.Value(bagKey).(*prop.Bag)
+		if bag == nil {
+			return errors.New("typeGenerator found but no *prop.Bag in context")
+		}
+		props, err := bag.GetProps(ctx)
+		if err != nil {
+			return fmt.Errorf("GetProps failed: %v", err)
+		}
+		err = config.typeGenerator.GenerateFromProps(typename, props)
+		if err != nil {
+			return fmt.Errorf("GenerateFromProps failed: %v", err)
+		}
+	}
+	return nil
+}
+
+func (g *TypeGenerator) GenerateFromProps(typename string, props Props) error {
+	return g.Generate(&page.InertiaPage{
+		Component:      typename,
+		Url:            "",
+		Props:          props,
+		DeferredProps:  nil,
+		Version:        "",
+		EncryptHistory: false,
+		ClearHistory:   false,
+	})
+}
+
+func (g *TypeGenerator) Generate(inertiaPage *page.InertiaPage) error {
 	component := inertiaPage.Component
 	props := inertiaPage.Props
 
@@ -95,14 +141,14 @@ func (g *typeGenerator) Generate(inertiaPage *page.InertiaPage) error {
 
 	root.Properties = newProps
 
-	err = GenerateTypeScriptForComponent(g.dirPath, root)
+	err = generateTypeScriptForComponent(g.dirPath, root)
 	if err != nil {
 		return fmt.Errorf("generating typescript: %w", err)
 	}
 	return nil
 }
 
-func GenerateTypeScriptForComponent(typeDir string, root typegen.TsType) error {
+func generateTypeScriptForComponent(typeDir string, root typegen.TsType) error {
 	typeDefs := typegen.ExtractTypeDefs(root)
 
 	for _, td := range typeDefs {

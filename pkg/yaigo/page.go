@@ -75,9 +75,9 @@ func (p *Page) Render(ctx context.Context, w io.Writer) error {
 	pageData.DeferredProps = bag.GetDeferredProps()
 
 	// todo: maybe move away?
-	if config.typeGen != nil {
+	if config.typeGenerator != nil {
 		start := time.Now()
-		err := config.typeGen.Generate(pageData)
+		err := config.typeGenerator.Generate(pageData)
 		if err != nil {
 			config.logger.Warn("typegen failed", slog.String("component", p.component), slog.Any("error", err))
 		}
